@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from 'framer-motion';
-import { BookOpen, FileText, BarChart2, User, Bell, Rocket, Globe, Eye, EyeOff, Camera, Play, Clock, Award, ChevronLeft, CheckCircle } from 'lucide-react';
+import { BookOpen, FileText, BarChart2, User, Bell, Rocket, Globe, Eye, EyeOff, Camera, Play, Clock, Award, ChevronLeft, CheckCircle, X, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
@@ -53,7 +53,26 @@ const TiltCard = ({ children, className, ...props }: { children: React.ReactNode
   );
 };
 
-const ProfileView = () => {
+const SkeletonCard = () => (
+   <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden h-64">
+      <div className="animate-pulse space-y-4">
+         <div className="flex justify-between items-start">
+            <div className="w-14 h-14 bg-slate-200 rounded-2xl" />
+            <div className="w-16 h-8 bg-slate-200 rounded-lg" />
+         </div>
+         <div className="h-4 bg-slate-200 rounded w-3/4 mt-8" />
+         <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mt-6">
+            <div className="h-full bg-slate-200 w-1/2" />
+         </div>
+         <div className="flex justify-between mt-4">
+            <div className="w-8 h-3 bg-slate-200 rounded" />
+            <div className="w-8 h-3 bg-slate-200 rounded" />
+         </div>
+      </div>
+   </div>
+);
+
+const ProfileView = ({ onSave }: { onSave: () => void }) => {
    const [showPassword, setShowPassword] = useState(false);
    
    return (
@@ -106,6 +125,7 @@ const ProfileView = () => {
             </div>
             <div className="px-8 pb-8">
                <div className="relative -mt-16 mb-8 flex items-end justify-between">
+                  {/* Avatar Upload Section */}
                   <div className="relative group">
                      <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100">
                         <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" className="w-full h-full object-cover" />
@@ -116,7 +136,12 @@ const ProfileView = () => {
                   </div>
                   <div className="flex gap-3">
                      <button className="px-6 py-2 rounded-full bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-colors">Cancel</button>
-                     <button className="px-6 py-2 rounded-full bg-[#2563EB] text-white font-bold hover:bg-[#1d4ed8] transition-colors shadow-lg shadow-blue-500/25">Save Changes</button>
+                     <button 
+                        onClick={onSave}
+                        className="px-6 py-2 rounded-full bg-[#2563EB] text-white font-bold hover:bg-[#1d4ed8] hover:shadow-lg hover:shadow-blue-500/30 transition-all"
+                      >
+                        Save Changes
+                     </button>
                   </div>
                </div>
 
@@ -157,7 +182,7 @@ const CoursePlayer = ({ onBack }: { onBack: () => void }) => {
       <motion.div 
          initial={{ opacity: 0, scale: 0.9 }}
          animate={{ opacity: 1, scale: 1 }}
-         exit={{ opacity: 0, scale: 1.1 }} // Scale up when exiting? Or maybe just fade out. Let's do opacity.
+         exit={{ opacity: 0, scale: 1.1 }} 
          transition={{ duration: 0.5, type: "spring", damping: 25, stiffness: 120 }}
          className="absolute inset-0 z-50 bg-[#0f172a] text-white overflow-hidden flex"
       >
@@ -214,99 +239,105 @@ const CoursePlayer = ({ onBack }: { onBack: () => void }) => {
    );
 };
 
-const AssignmentsView = () => (
-   <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
-   >
-      <h2 className="text-2xl font-bold text-slate-800">Pending Assignments</h2>
-      <div className="grid gap-4">
-         {[
-            { title: "React Component Lifecycle", due: "Tomorrow", subject: "Frontend Dev", status: "Pending" },
-            { title: "Database Schema Design", due: "Sep 24", subject: "Backend Dev", status: "In Progress" },
-            { title: "User Persona Research", due: "Sep 28", subject: "UI/UX Design", status: "Not Started" },
-         ].map((task, i) => (
-            <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
-               <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl ${i === 0 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                     <FileText className="w-6 h-6" />
+const AssignmentsView = () => {
+   const { t } = useTranslation();
+   return (
+      <motion.div 
+         initial={{ opacity: 0, y: 20 }}
+         animate={{ opacity: 1, y: 0 }}
+         exit={{ opacity: 0, y: -20 }}
+         transition={{ duration: 0.3 }}
+         className="space-y-6"
+      >
+         <h2 className="text-2xl font-bold text-slate-800">{t('pending_assignments')}</h2>
+         <div className="grid gap-4">
+            {[
+               { title: "React Component Lifecycle", due: "Tomorrow", subject: "Frontend Dev", status: "Pending" },
+               { title: "Database Schema Design", due: "Sep 24", subject: "Backend Dev", status: "In Progress" },
+               { title: "User Persona Research", due: "Sep 28", subject: "UI/UX Design", status: "Not Started" },
+            ].map((task, i) => (
+               <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4">
+                     <div className={`p-3 rounded-xl ${i === 0 ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                        <FileText className="w-6 h-6" />
+                     </div>
+                     <div>
+                        <h3 className="font-bold text-slate-800">{task.title}</h3>
+                        <p className="text-sm text-slate-500">{task.subject}</p>
+                     </div>
                   </div>
-                  <div>
-                     <h3 className="font-bold text-slate-800">{task.title}</h3>
-                     <p className="text-sm text-slate-500">{task.subject}</p>
+                  <div className="text-right">
+                     <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                        task.due === 'Tomorrow' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'
+                     }`}>
+                        Due: {task.due}
+                     </span>
                   </div>
                </div>
-               <div className="text-right">
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                     task.due === 'Tomorrow' ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                     Due: {task.due}
-                  </span>
-               </div>
-            </div>
-         ))}
-      </div>
-   </motion.div>
-);
-
-const GradesView = () => (
-   <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-8"
-   >
-      <div className="flex items-center justify-between">
-         <h2 className="text-2xl font-bold text-slate-800">Performance Overview</h2>
-         <div className="flex gap-2">
-            <span className="w-3 h-3 rounded-full bg-[#2563EB]"></span>
-            <span className="text-sm text-slate-500">Average Grade: A-</span>
+            ))}
          </div>
-      </div>
+      </motion.div>
+   );
+};
 
-      <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 flex items-end justify-between h-64 gap-4">
-         {[65, 80, 45, 90, 75, 85, 95].map((h, i) => (
-            <motion.div 
-               key={i}
-               initial={{ height: 0 }}
-               animate={{ height: `${h}%` }}
-               transition={{ duration: 0.8, delay: i * 0.1, type: "spring" }}
-               className="w-full bg-gradient-to-t from-[#2563EB] to-[#7C3AED] rounded-t-xl opacity-80 hover:opacity-100 transition-opacity relative group"
-            >
-               <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                  {h}%
-               </div>
-            </motion.div>
-         ))}
-      </div>
-      
-      <div className="grid md:grid-cols-2 gap-6">
-         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-            <h3 className="font-bold text-slate-700 mb-4">Strongest Areas</h3>
-            <div className="flex flex-wrap gap-2">
-               {['React Hooks', 'CSS Grid', 'API Design'].map(tag => (
-                  <span key={tag} className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-semibold">{tag}</span>
-               ))}
+const GradesView = () => {
+   const { t } = useTranslation();
+   return (
+      <motion.div 
+         initial={{ opacity: 0, y: 20 }}
+         animate={{ opacity: 1, y: 0 }}
+         exit={{ opacity: 0, y: -20 }}
+         transition={{ duration: 0.3 }}
+         className="space-y-8"
+      >
+         <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-slate-800">{t('performance_overview')}</h2>
+            <div className="flex gap-2">
+               <span className="w-3 h-3 rounded-full bg-[#2563EB]"></span>
+               <span className="text-sm text-slate-500">{t('average_grade')}: A-</span>
             </div>
          </div>
-         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-             <h3 className="font-bold text-slate-700 mb-4">Needs Improvement</h3>
-             <div className="flex flex-wrap gap-2">
-                {['TypeScript Generics', 'Docker'].map(tag => (
-                   <span key={tag} className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-sm font-semibold">{tag}</span>
-                ))}
-             </div>
+
+         <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-xl shadow-slate-200/50 flex items-end justify-between h-64 gap-4">
+            {[65, 80, 45, 90, 75, 85, 95].map((h, i) => (
+               <motion.div 
+                  key={i}
+                  initial={{ height: 0 }}
+                  animate={{ height: `${h}%` }}
+                  transition={{ duration: 0.8, delay: i * 0.1, type: "spring" }}
+                  className="w-full bg-gradient-to-t from-[#2563EB] to-[#7C3AED] rounded-t-xl opacity-80 hover:opacity-100 transition-opacity relative group"
+               >
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                     {h}%
+                  </div>
+               </motion.div>
+            ))}
          </div>
-      </div>
-   </motion.div>
-);
+         
+         <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+               <h3 className="font-bold text-slate-700 mb-4">{t('strongest_areas')}</h3>
+               <div className="flex flex-wrap gap-2">
+                  {['React Hooks', 'CSS Grid', 'API Design'].map(tag => (
+                     <span key={tag} className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-semibold">{tag}</span>
+                  ))}
+               </div>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+               <h3 className="font-bold text-slate-700 mb-4">{t('needs_improvement')}</h3>
+               <div className="flex flex-wrap gap-2">
+                  {['TypeScript Generics', 'Docker'].map(tag => (
+                     <span key={tag} className="px-3 py-1 bg-orange-100 text-orange-700 rounded-lg text-sm font-semibold">{tag}</span>
+                  ))}
+               </div>
+            </div>
+         </div>
+      </motion.div>
+   );
+};
 
 export default function StudentDashboard() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
   const [activeTab, setActiveTab] = useState('courses');
   const [viewMode, setViewMode] = useState<'dashboard' | 'player'>('dashboard');
@@ -326,7 +357,27 @@ export default function StudentDashboard() {
     visible: { opacity: 1, y: 0 }
   };
 
+  const [loading, setLoading] = useState(true);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [toast, setToast] = useState<{message: string} | null>(null);
+
   useEffect(() => {
+    // Simulate data fetching
+    setTimeout(() => {
+       setLoading(false);
+    }, 2500);
+
+    // Initial check for notifications
+    const checkNotifications = () => {
+       const notifs = JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]');
+       const unreadCount = notifs.filter((n: any) => !n.read).length;
+       if (unreadCount > 0) setShowNotifications(true);
+    };
+    checkNotifications();
+
+    // Listen for global updates
+    window.addEventListener('storage', checkNotifications);
+
     // Check if any course is 100% and trigger confetti
     const courses = [
        { progress: 75 },
@@ -341,9 +392,17 @@ export default function StudentDashboard() {
            origin: { y: 0.6 },
            colors: ['#2563EB', '#7C3AED', '#10B981']
          });
-       }, 1000);
+       }, 3000);
     }
+    
+    return () => window.removeEventListener('storage', checkNotifications);
   }, []);
+
+  const showToast = (message: string) => {
+     setToast({ message });
+     setTimeout(() => setToast(null), 3000);
+  };
+
 
   const renderContent = () => {
     switch (activeTab) {
@@ -360,16 +419,19 @@ export default function StudentDashboard() {
               {/* Progress Section */}
               <section>
                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wider">Your Progress</h2>
-                    <button className="text-sm font-bold text-[#2563EB] hover:text-[#7C3AED] transition-colors">View All</button>
+                    <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wider">{t('your_progress')}</h2>
+                    <button className="text-sm font-bold text-[#2563EB] hover:text-[#7C3AED] transition-colors">{t('view_all')}</button>
                  </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {[
-                       { course: "Advanced React Patterns", progress: 75, icon: BookOpen, color: "text-[#2563EB]", bg: "bg-[#2563EB]/10" },
-                       { course: "UI/UX Principles", progress: 45, icon: FileText, color: "text-[#7C3AED]", bg: "bg-[#7C3AED]/10" },
-                       { course: "Database Architecture", progress: 100, icon: BarChart2, color: "text-[#10B981]", bg: "bg-[#10B981]/10" }
-                    ].map((item, i) => (
+                    {loading ? (
+                        [1, 2, 3].map(i => <SkeletonCard key={i} />)
+                    ) : (
+                        [
+                        { course: "Advanced React Patterns", progress: 75, icon: BookOpen, color: "text-[#2563EB]", bg: "bg-[#2563EB]/10" },
+                        { course: "UI/UX Principles", progress: 45, icon: FileText, color: "text-[#7C3AED]", bg: "bg-[#7C3AED]/10" },
+                        { course: "Database Architecture", progress: 100, icon: BarChart2, color: "text-[#10B981]", bg: "bg-[#10B981]/10" }
+                        ].map((item, i) => (
                        <TiltCard 
                           key={i}
                           variants={itemVariants}
@@ -401,13 +463,13 @@ export default function StudentDashboard() {
                              </div>
                           </div>
                        </TiltCard>
-                    ))}
+                    )))}
                  </div>
               </section>
 
               {/* Learning Path */}
               <section>
-                 <h2 className="text-lg font-bold text-slate-800 mb-6 uppercase tracking-wider">Recommended Path</h2>
+                 <h2 className="text-lg font-bold text-slate-800 mb-6 uppercase tracking-wider">{t('recommended_path')}</h2>
                  <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-[#2563EB] via-[#7C3AED] to-[#F59E0B]" />
                     <div className="flex items-center gap-6">
@@ -415,11 +477,11 @@ export default function StudentDashboard() {
                           <Rocket className="w-10 h-10 fill-white/20" />
                        </div>
                        <div>
-                          <h3 className="text-xl font-bold text-slate-900 mb-2">Mastering FullStack Development</h3>
-                          <p className="text-slate-500 max-w-xl">A comprehensive journey from frontend basics to backend mastery. Unlock 12 new badges and certified status.</p>
+                          <h3 className="text-xl font-bold text-slate-900 mb-2">{t('mastering_fullstack')}</h3>
+                          <p className="text-slate-500 max-w-xl">{t('path_desc')}</p>
                        </div>
                        <MagneticButton onClick={() => setViewMode('player')} className="ml-auto px-8 py-3 rounded-full bg-slate-900 text-white font-bold hover:bg-[#2563EB] transition-all hover:shadow-lg hover:shadow-blue-500/25 active:scale-95">
-                          Continue Journey
+                          {t('continue_journey')}
                        </MagneticButton>
                     </div>
                  </div>
@@ -431,7 +493,7 @@ export default function StudentDashboard() {
       case 'grades':
         return <GradesView key="grades" />;
       case 'profile':
-         return <ProfileView key="profile" />;
+         return <ProfileView key="profile" onSave={() => showToast(t('success_toast'))} />;
       default:
         return null;
     }
@@ -466,17 +528,17 @@ export default function StudentDashboard() {
                         <Rocket className="w-5 h-5 fill-white/20" />
                      </div>
                      <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#2563EB] to-[#7C3AED]">
-                       ITQAN
+                       {t('brand')}
                      </span>
                   </div>
                 </div>
 
                 <nav className="flex-1 py-8 px-4 space-y-2">
                   {[
-                    { id: 'courses', icon: BookOpen, label: 'My Courses' },
-                    { id: 'assignments', icon: FileText, label: 'Assignments' },
-                    { id: 'grades', icon: BarChart2, label: 'Grades' },
-                    { id: 'profile', icon: User, label: 'Profile' },
+                    { id: 'courses', icon: BookOpen, label: 'my_courses' },
+                    { id: 'assignments', icon: FileText, label: 'assignments' },
+                    { id: 'grades', icon: BarChart2, label: 'grades' },
+                    { id: 'profile', icon: User, label: 'profile' },
                   ].map((item) => (
                     <button 
                       key={item.id}
@@ -495,7 +557,7 @@ export default function StudentDashboard() {
                          />
                       )}
                       <item.icon className="w-5 h-5 group-hover:scale-110 transition-transform relative z-10" />
-                      <span className="text-sm relative z-10">{item.label}</span>
+                      <span className="text-sm relative z-10">{t(item.label)}</span>
                     </button>
                   ))}
                 </nav>
@@ -509,7 +571,7 @@ export default function StudentDashboard() {
                       </div>
                       <div>
                          <p className="text-sm font-bold text-slate-800 group-hover:text-[#2563EB] transition-colors">Ahmed Osman</p>
-                         <p className="text-xs text-slate-500">Student</p>
+                         <p className="text-xs text-slate-500">{t('student')}</p>
                       </div>
                    </div>
                 </div>
@@ -520,8 +582,8 @@ export default function StudentDashboard() {
                 {/* Top Header */}
                 <header className="h-24 flex items-center justify-between px-8 z-10">
                   <div>
-                     <h1 className="text-2xl font-bold text-slate-900">Welcome Back, Ahmed! 👋</h1>
-                     <p className="text-slate-500 text-sm">Let's continue learning today.</p>
+                     <h1 className="text-2xl font-bold text-slate-900">{t('welcome_back')}</h1>
+                     <p className="text-slate-500 text-sm">{t('continue_learning')}</p>
                   </div>
                   
                   <div className="flex items-center gap-4">
@@ -531,10 +593,57 @@ export default function StudentDashboard() {
                      >
                         <Globe className="w-5 h-5" />
                      </button>
-                     <button className="w-10 h-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-500 hover:text-[#F59E0B] hover:border-[#F59E0B]/30 hover:shadow-lg transition-all relative">
-                        <Bell className="w-5 h-5" />
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                     </button>
+                     <div className="relative">
+                        <button 
+                           onClick={() => setShowNotifications(!showNotifications)}
+                           className={`w-10 h-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-500 hover:text-[#F59E0B] hover:border-[#F59E0B]/30 hover:shadow-lg transition-all relative ${showNotifications ? 'text-[#F59E0B] border-[#F59E0B]/30' : ''}`}
+                        >
+                           <Bell className="w-5 h-5" />
+                           <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                        </button>
+                        
+                        <AnimatePresence>
+                           {showNotifications && (
+                              <motion.div 
+                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                 animate={{ opacity: 1, y: 0, scale: 1 }}
+                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                 className={`absolute top-14 ${isRTL ? 'left-0' : 'right-0'} w-80 bg-white rounded-2xl shadow-xl border border-slate-100 p-4 z-50`}
+                              >
+                                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-50">
+                                    <h3 className="font-bold text-slate-800">{t('notifications')}</h3>
+                                    <span className="text-xs bg-[#2563EB]/10 text-[#2563EB] px-2 py-1 rounded-full font-bold">3 {t('new')}</span>
+                                 </div>
+                                 <div className="space-y-3 max-h-80 overflow-y-auto">
+                                    {(JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]') as any[]).length === 0 ? (
+                                       <p className="text-center text-sm text-slate-400 py-4">No new notifications</p>
+                                    ) : (
+                                       (JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]') as any[]).map((notif, i) => (
+                                          <motion.div 
+                                             key={notif.id || i}
+                                             initial={{ opacity: 0, x: -20 }}
+                                             animate={{ opacity: 1, x: 0 }}
+                                             transition={{ delay: i * 0.1 }}
+                                             className="flex gap-3 hover:bg-slate-50 p-2 rounded-xl transition-colors cursor-pointer"
+                                          >
+                                             <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
+                                                notif.type === 'success' ? 'bg-green-500' : notif.type === 'info' ? 'bg-blue-500' : 'bg-orange-500'
+                                             }`} />
+                                             <div>
+                                                <p className="text-sm font-medium text-slate-700 leading-tight">{notif.message}</p>
+                                                <p className="text-xs text-slate-400 mt-1">{new Date(notif.timestamp).toLocaleTimeString()}</p>
+                                             </div>
+                                          </motion.div>
+                                       ))
+                                    )}
+                                 </div>
+                                 <button className="w-full mt-4 py-2 text-xs font-bold text-center text-slate-500 hover:text-[#2563EB] transition-colors">
+                                    {t('mark_all_read')}
+                                 </button>
+                              </motion.div>
+                           )}
+                        </AnimatePresence>
+                     </div>
                   </div>
                 </header>
 
@@ -549,6 +658,28 @@ export default function StudentDashboard() {
           <CoursePlayer key="player" onBack={() => setViewMode('dashboard')} />
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+         {toast && (
+            <motion.div 
+               initial={{ opacity: 0, y: -50, x: isRTL ? -20 : 20 }}
+               animate={{ opacity: 1, y: 0, x: 0 }}
+               exit={{ opacity: 0, y: -50 }}
+               className={`fixed top-8 ${isRTL ? 'left-8' : 'right-8'} z-[100] flex items-center gap-3 bg-white px-6 py-4 rounded-2xl shadow-2xl border border-green-100`}
+            >
+               <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                  <Check className="w-5 h-5" />
+               </div>
+               <div>
+                  <h4 className="font-bold text-slate-800">Success</h4>
+                  <p className="text-sm text-slate-500">{toast.message}</p>
+               </div>
+               <button onClick={() => setToast(null)} className="ml-4 text-slate-400 hover:text-slate-600">
+                  <X className="w-4 h-4" />
+               </button>
+            </motion.div>
+         )}
+      </AnimatePresence>
     </div>
-  )
+  );
 }
