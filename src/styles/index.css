@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Readex+Pro:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Vibrant Multi-Gen Theme */
+  --bg-primary: 210 40% 98%; /* Ghost White #F8FAFC */
+  --bg-secondary: 0 0% 100%; /* White */
+  --text-primary: 215 28% 17%; /* Slate 900 #0f172a */
+  --text-secondary: 215 16% 47%; /* Slate 500 #64748b */
+
+  --brand-blue: 221 83% 53%; /* #2563EB */
+  --brand-purple: 262 83% 58%; /* #7C3AED */
+  --accent-mint: 158 84% 39%; /* #10B981 */
+  --accent-orange: 38 93% 50%; /* #F59E0B */
+
+  --font-main: "Plus Jakarta Sans", sans-serif;
+  --font-arabic: "Readex Pro", sans-serif;
+}
+
+body {
+  background-color: hsl(var(--bg-primary));
+  color: hsl(var(--text-primary));
+  font-family: var(--font-main);
+  overflow-x: hidden;
+}
+
+.font-arabic {
+  font-family: var(--font-arabic);
+}
+
+
+.font-arabic {
+  font-family: var(--font-arabic);
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+}
+
+.glass-button {
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  color: hsl(var(--gold-primary));
+  transition: all 0.3s ease;
+}
+
+.glass-button:hover {
+  background: rgba(212, 175, 55, 0.2);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+/* Gradient Text */
+.text-gradient-gold {
+  background: linear-gradient(135deg, #ffd700 0%, #d4af37 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
