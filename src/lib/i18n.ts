@@ -76,7 +76,27 @@ const resources = {
       "edit": "Edit",
       "status": "Status",
       "actions": "Actions",
-      "search_placeholder": "Search anything..."
+      "search_placeholder": "Search anything...",
+      
+      // Payment Keys
+      "billing": "Billing & Plans",
+      "upgrade_now": "Upgrade Now",
+      "premium_features": "Premium Features",
+      "payment_method": "Payment Method",
+      "vodafone_cash": "Vodafone Cash",
+      "upload_receipt": "Upload Transaction Receipt",
+      "payment_requests": "Payment Requests",
+      "confirm_payment": "Confirm Payment",
+      "coming_soon": "Coming Soon",
+      "monthly_plan": "Monthly Plan",
+      "plan_price": "250 EGP",
+      "unlimited_access": "Unlimited Access to All Courses",
+      "certificate": "Official Certificates",
+      "mentorship": "1-on-1 Mentorship",
+      "transaction_id": "Transaction ID",
+      "confirm_subscription": "Confirm Subscription",
+      "pending_approval": "Pending Approval",
+      "receipt_instructions": "Please transfer 250 EGP to 01012345678 and upload the receipt screenshot."
     }
   },
   ar: {
@@ -153,7 +173,27 @@ const resources = {
       "edit": "تعديل",
       "status": "الحالة",
       "actions": "إجراءات",
-      "search_placeholder": "ابحث عن أي شيء..."
+      "search_placeholder": "ابحث عن أي شيء...",
+      
+      // Payment Keys
+      "billing": "الخطط والاشتراكات",
+      "upgrade_now": "ارتقِ الآن",
+      "premium_features": "مميزات البريميوم",
+      "payment_method": "طريقة الدفع",
+      "vodafone_cash": "فودافون كاش",
+      "upload_receipt": "رفع إيصال التحويل",
+      "payment_requests": "طلبات الدفع",
+      "confirm_payment": "تأكيد الدفع",
+      "coming_soon": "قريباً",
+      "monthly_plan": "الخطة الشهرية",
+      "plan_price": "250 ج.م",
+      "unlimited_access": "وصول غير محدود لجميع الدورات",
+      "certificate": "شهادات معتمدة",
+      "mentorship": "توجيه فردي مباشر",
+      "transaction_id": "رقم العملية",
+      "confirm_subscription": "تأكيد الاشتراك",
+      "pending_approval": "بانتظار الموافقة",
+      "receipt_instructions": "يرجى تحويل 250 ج.م إلى 01012345678 ورفع صورة الإيصال."
     }
   }
 };

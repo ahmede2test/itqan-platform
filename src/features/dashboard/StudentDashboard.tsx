@@ -1,5 +1,5 @@
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from 'framer-motion';
-import { BookOpen, FileText, BarChart2, User, Bell, Rocket, Globe, Eye, EyeOff, Camera, Play, Clock, Award, ChevronLeft, CheckCircle, X, Check } from 'lucide-react';
+import { BookOpen, FileText, BarChart2, User, Bell, Rocket, Globe, Eye, EyeOff, Camera, Play, Clock, Award, ChevronLeft, CheckCircle, X, Check, CreditCard, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
@@ -174,6 +174,117 @@ const ProfileView = ({ onSave }: { onSave: () => void }) => {
             </div>
          </div>
       </motion.div>
+   );
+};
+
+const BillingView = () => {
+   const { t } = useTranslation();
+   const [showPayment, setShowPayment] = useState(false);
+
+   return (
+      <div className="max-w-4xl mx-auto space-y-8 pb-10">
+         <div className="text-center space-y-2 mb-10">
+            <h2 className="text-3xl font-bold text-slate-900 bg-clip-text text-transparent bg-gradient-to-r from-[#2563EB] to-[#7C3AED] leading-normal pb-1">{t('premium_features')}</h2>
+            <p className="text-slate-500">Unlock your full potential with ITQAN Premium.</p>
+         </div>
+
+         <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-purple-500/10 overflow-hidden relative"
+         >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#7C3AED]/10 to-[#2563EB]/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+            
+            <div className="p-8 md:p-12 text-center relative z-10">
+               <div className="inline-block px-4 py-1.5 rounded-full bg-gradient-to-r from-[#F59E0B] to-[#F97316] text-white text-xs font-bold mb-4 shadow-lg shadow-orange-500/30">
+                  Most Popular
+               </div>
+               <h3 className="text-2xl font-bold text-slate-800 mb-2">{t('monthly_plan')}</h3>
+               <div className="flex items-end justify-center gap-1 mb-8">
+                  <span className="text-5xl font-extrabold text-slate-900">{t('plan_price')}</span>
+                  <span className="text-slate-500 font-medium mb-1">/mo</span>
+               </div>
+
+               <div className="space-y-4 max-w-sm mx-auto mb-10 text-left">
+                  {[
+                     t('unlimited_access'),
+                     t('certificate'),
+                     t('mentorship'),
+                     "Offline Downloads",
+                     "Priority Support"
+                  ].map((feat, i) => (
+                     <div key={i} className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0">
+                           <Check className="w-4 h-4" />
+                        </div>
+                        <span className="text-slate-600 font-medium">{feat}</span>
+                     </div>
+                  ))}
+               </div>
+
+               <MagneticButton 
+                  onClick={() => setShowPayment(true)}
+                  className="w-full max-w-sm mx-auto px-8 py-4 rounded-xl bg-gradient-to-r from-[#E60000] to-[#B90000] text-white font-bold text-lg hover:shadow-xl hover:shadow-red-500/30 hover:scale-105 transition-all"
+               >
+                  {t('upgrade_now')}
+               </MagneticButton>
+            </div>
+         </motion.div>
+
+         {/* Vodafone Payment Modal */}
+         <AnimatePresence>
+            {showPayment && (
+               <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+               >
+                  <motion.div 
+                     initial={{ scale: 0.9, y: 30 }}
+                     animate={{ scale: 1, y: 0 }}
+                     exit={{ scale: 0.9, y: 30 }}
+                     className="bg-white w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+                  >
+                     <div className="absolute top-0 left-0 w-full h-2 bg-[#E60000]" />
+                     <button onClick={() => setShowPayment(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 transition-colors">
+                        <X className="w-6 h-6 text-slate-400" />
+                     </button>
+
+                     <div className="text-center mb-8">
+                        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                           <div className="w-12 h-12 bg-[#E60000] rounded-full flex items-center justify-center text-white text-xl font-bold">V</div>
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-900">{t('vodafone_cash')}</h2>
+                        <p className="text-slate-500 text-sm mt-1">{t('receipt_instructions')}</p>
+                     </div>
+
+                     <div className="space-y-4 mb-8">
+                        <div>
+                           <label className="block text-sm font-bold text-slate-700 mb-1">{t('transaction_id')}</label>
+                           <input type="text" placeholder="e.g. 23498123" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-mono" />
+                        </div>
+                        
+                        <div className="border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 p-6 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 hover:bg-red-50 transition-all group">
+                           <Upload className="w-8 h-8 text-slate-400 group-hover:text-red-500 mb-2" />
+                           <span className="text-sm font-bold text-slate-500 group-hover:text-red-600">{t('upload_receipt')}</span>
+                        </div>
+                     </div>
+
+                     <button 
+                        onClick={() => {
+                           setShowPayment(false);
+                           confetti({ colors: ['#E60000', '#FFFFFF'] });
+                        }}
+                        className="w-full py-4 rounded-xl bg-[#E60000] text-white font-bold text-lg hover:bg-[#c40000] hover:shadow-lg hover:shadow-red-500/30 transition-all"
+                     >
+                        {t('confirm_subscription')}
+                     </button>
+                  </motion.div>
+               </motion.div>
+            )}
+         </AnimatePresence>
+      </div>
    );
 };
 
@@ -494,6 +605,8 @@ export default function StudentDashboard() {
         return <GradesView key="grades" />;
       case 'profile':
          return <ProfileView key="profile" onSave={() => showToast(t('success_toast'))} />;
+      case 'billing':
+         return <BillingView key="billing" />;
       default:
         return null;
     }
@@ -538,6 +651,7 @@ export default function StudentDashboard() {
                     { id: 'courses', icon: BookOpen, label: 'my_courses' },
                     { id: 'assignments', icon: FileText, label: 'assignments' },
                     { id: 'grades', icon: BarChart2, label: 'grades' },
+                    { id: 'billing', icon: CreditCard, label: 'billing' },
                     { id: 'profile', icon: User, label: 'profile' },
                   ].map((item) => (
                     <button 

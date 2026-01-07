@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, Users, BookOpen, Settings, Bell, Search, Upload, Plus, MoreVertical, Globe, Trash2, Edit2, Rocket, CheckCircle, Video, Image as ImageIcon, Layout, X } from 'lucide-react';
+import { BarChart3, Users, BookOpen, Settings, Bell, Search, Upload, Plus, MoreVertical, Globe, Trash2, Edit2, Rocket, CheckCircle, Video, Image as ImageIcon, Layout, X, CreditCard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
@@ -258,6 +258,88 @@ const CourseUploadModal = ({ onClose }: { onClose: () => void }) => {
    );
 };
 
+
+
+const PaymentRequestsView = () => {
+   const { t, i18n } = useTranslation();
+   const isRTL = i18n.language === 'ar';
+   
+   const [requests, setRequests] = useState([
+      { id: 'TX-98234', student: 'Omar Hassan', plan: 'Monthly Plan', date: '2 mins ago', amount: '250 EGP', status: 'pending' },
+      { id: 'TX-98233', student: 'Sarah Ahmed', plan: 'Monthly Plan', date: '15 mins ago', amount: '250 EGP', status: 'pending' },
+      { id: 'TX-98232', student: 'Mohamed Ali', plan: 'Yearly Plan', date: '1 hour ago', amount: '2500 EGP', status: 'approved' },
+   ]);
+
+   const handleConfirm = (id: string) => {
+      setRequests(requests.map(r => r.id === id ? { ...r, status: 'approved' } : r));
+      confetti({
+         particleCount: 150,
+         spread: 60,
+         origin: { y: 0.6 },
+         colors: ['#2563EB', '#10B981']
+      });
+      addNotification(`Payment Confirmed for ${id}`, 'success');
+   };
+
+   return (
+      <div className="space-y-6">
+         <h2 className="text-xl font-bold text-slate-800">{t('payment_requests')}</h2>
+         
+         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+            <table className="w-full">
+               <thead className="bg-slate-50 border-b border-slate-100">
+                  <tr>
+                     <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>{t('transaction_id')}</th>
+                     <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>Student</th>
+                     <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>Plan</th>
+                     <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>Amount</th>
+                     <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>{t('status')}</th>
+                     <th className="px-8 py-4"></th>
+                  </tr>
+               </thead>
+               <tbody className="divide-y divide-slate-100">
+                  {requests.map((req) => (
+                     <tr key={req.id} className="group hover:bg-slate-50/50 transition-colors">
+                        <td className="px-8 py-4 font-mono text-slate-600">{req.id}</td>
+                        <td className="px-8 py-4">
+                           <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600">
+                                 {req.student.split(' ').map(n => n[0]).join('')}
+                              </div>
+                              <div>
+                                 <p className="font-bold text-slate-800 text-sm">{req.student}</p>
+                                 <p className="text-xs text-slate-400">{req.date}</p>
+                              </div>
+                           </div>
+                        </td>
+                        <td className="px-8 py-4 text-sm font-medium text-slate-600">{req.plan}</td>
+                        <td className="px-8 py-4 text-sm font-bold text-slate-800">{req.amount}</td>
+                        <td className="px-8 py-4">
+                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              req.status === 'approved' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                           }`}>
+                              {req.status === 'approved' ? 'Active' : t('pending_approval')}
+                           </span>
+                        </td>
+                        <td className="px-8 py-4 text-right">
+                           {req.status === 'pending' && (
+                              <button 
+                                 onClick={() => handleConfirm(req.id)}
+                                 className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/20"
+                              >
+                                 {t('confirm_payment')}
+                              </button>
+                           )}
+                        </td>
+                     </tr>
+                  ))}
+               </tbody>
+            </table>
+         </div>
+      </div>
+   );
+};
+
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
@@ -289,6 +371,7 @@ export default function AdminDashboard() {
             { id: 'overview', icon: BarChart3, label: 'overview' },
             { id: 'courses', icon: BookOpen, label: 'course_manager' },
             { id: 'students', icon: Users, label: 'student_directory' },
+            { id: 'payments', icon: CreditCard, label: 'payment_requests' },
             { id: 'announcements', icon: Bell, label: 'announcements' },
           ].map((item) => (
             <button 
@@ -459,6 +542,7 @@ export default function AdminDashboard() {
                   </div>
               </div>
            )}
+           {activeTab === 'payments' && <PaymentRequestsView />}
 
         </div>
       </main>
