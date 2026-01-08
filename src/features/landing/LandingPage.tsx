@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, BookOpen, Users, Rocket, Globe, Menu, X, ChevronRight, PlayCircle, Shield, GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { motion, type Variants } from 'framer-motion';
+import { Sparkles, BookOpen, Users, Rocket, Globe, Menu, ChevronRight, PlayCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import confetti from 'canvas-confetti';
+import { supabase } from '../../lib/supabase';
 import '../../lib/i18n';
 
 // Magnetic Button Component
 import { MagneticButton } from '../../components/MagneticButton';
+import { AuthModal } from '../../shared/components/AuthModal';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -16,43 +17,30 @@ export default function LandingPage() {
   
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [userRole, setUserRole] = useState<'student' | 'admin'>('student');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/dashboard');
+      }
+    };
+    checkSession();
+  }, [navigate]);
 
   const toggleLanguage = () => {
     i18n.changeLanguage(isRTL ? 'en' : 'ar');
   };
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  // handleAuth removed, moved to AuthModal
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      if (authMode === 'signup') {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#2563EB', '#7C3AED', '#F59E0B']
-        });
-      }
-
-      if (userRole === 'admin') {
-        navigate('/admin-dashboard');
-      } else {
-        navigate('/dashboard');
-      }
-    }, 1500);
-  };
-
-  // Animation Variants
-  const fadeInUp = {
+  const fadeInUp: Variants = {
     hidden: { opacity: 0, y: 40 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+    visible: { 
+      opacity: 1, 
+      y: 0, 
+      transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } 
+    }
   };
 
   const stagger = {
@@ -96,7 +84,10 @@ export default function LandingPage() {
             </button>
 
             <MagneticButton 
-              onClick={() => { setIsLoginModalOpen(true); setAuthMode('login'); }}
+              onClick={() => {
+                setAuthMode('signup');
+                setIsLoginModalOpen(true);
+              }}
               className="px-6 py-2.5 rounded-full font-bold text-white bg-gradient-to-r from-[#2563EB] to-[#7C3AED] hover:shadow-lg hover:shadow-blue-500/30 active:scale-95 transition-all duration-200"
             >
               {t('get_started')}
@@ -138,8 +129,11 @@ export default function LandingPage() {
             
             <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start">
               <MagneticButton 
-                onClick={() => { setIsLoginModalOpen(true); setAuthMode('signup'); }}
-                className="group relative px-8 py-4 rounded-full bg-slate-900 text-white font-bold text-lg hover:-translate-y-1 hover:shadow-xl shadow-slate-900/20 active:scale-95 transition-all duration-300 w-full sm:w-auto overflow-hidden"
+                onClick={() => {
+                  setAuthMode('signup');
+                  setIsLoginModalOpen(true);
+                }}
+                className="group relative px-9 py-4 rounded-full bg-slate-900 text-white font-bold text-lg hover:-translate-y-1 hover:shadow-2xl shadow-slate-900/30 active:scale-95 transition-all duration-300 w-full sm:w-auto overflow-hidden ring-4 ring-transparent hover:ring-blue-500/20"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-[#2563EB] to-[#7C3AED] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <span className="relative flex items-center justify-center gap-2">
@@ -241,145 +235,11 @@ export default function LandingPage() {
          </div>
       </footer>
 
-      {/* Auth Modal with Role Switcher */}
-      <AnimatePresence>
-        {isLoginModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsLoginModalOpen(false)}
-              className="absolute inset-0 bg-[#F8FAFC]/90 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md bg-white p-10 rounded-[2.5rem] shadow-2xl border border-slate-100"
-            >
-              <button 
-                onClick={() => setIsLoginModalOpen(false)}
-                className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                disabled={isLoading}
-              >
-                <X className="w-6 h-6" />
-              </button>
-
-              <div className="text-center mb-8">
-                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2563EB] to-[#7C3AED] flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-blue-500/20">
-                    <Rocket className="w-8 h-8 fill-white/20" />
-                 </div>
-                 <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                   {authMode === 'login' ? t('welcome_back') : t('create_account')}
-                 </h2>
-                 <p className="text-slate-500 font-medium">
-                   {authMode === 'login' ? t('ready_adventure') : t('join_journey')}
-                 </p>
-              </div>
-
-              {/* Role Switcher */}
-              <div className="bg-slate-100 p-1 rounded-xl flex mb-6 relative overflow-hidden">
-                <motion.div 
-                   className="absolute inset-y-1 bg-white rounded-lg shadow-sm w-1/2"
-                   initial={false}
-                   animate={{ 
-                     x: userRole === 'student' ? (isRTL ? '100%' : '0%') : (isRTL ? '0%' : '100%'),
-                   }}
-                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-                <button 
-                   onClick={() => setUserRole('student')}
-                   className={`flex-1 relative z-10 py-2.5 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${userRole === 'student' ? 'text-slate-900' : 'text-slate-500'}`}
-                >
-                   <GraduationCap className="w-4 h-4" /> {t('student')}
-                </button>
-                <button 
-                   onClick={() => setUserRole('admin')}
-                   className={`flex-1 relative z-10 py-2.5 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${userRole === 'admin' ? 'text-slate-900' : 'text-slate-500'}`}
-                >
-                   <Shield className="w-4 h-4" /> {t('admin')}
-                </button>
-              </div>
-
-              <form onSubmit={handleAuth} className="space-y-4">
-                {authMode === 'signup' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                     <input 
-                      type="text" 
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3.5 px-6 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all font-bold"
-                      placeholder={t('full_name')}
-                    />
-                  </motion.div>
-                )}
-                
-                <input 
-                  type="email" 
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3.5 px-6 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all font-bold"
-                  placeholder={t('email')}
-                />
-                
-                <div className="relative group">
-                   <motion.input 
-                     type={showPassword ? "text" : "password"}
-                     className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3.5 px-6 pr-12 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all font-bold"
-                     placeholder={t('password')}
-                     animate={{
-                       borderColor: showPassword ? "rgba(124, 58, 237, 0.5)" : "",
-                     }}
-                     transition={{ duration: 0.2 }}
-                   />
-                   <motion.button
-                     type="button"
-                     onClick={() => setShowPassword(!showPassword)}
-                     whileTap={{ scale: 0.9 }}
-                     className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#7C3AED] transition-all p-1"
-                   >
-                       <AnimatePresence mode="wait" initial={false}>
-                           <motion.div
-                               key={showPassword ? 'hide' : 'show'}
-                               initial={{ opacity: 0, rotate: -20, scale: 0.8 }}
-                               animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                               exit={{ opacity: 0, rotate: 20, scale: 0.8 }}
-                               transition={{ duration: 0.2 }}
-                           >
-                               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                           </motion.div>
-                       </AnimatePresence>
-                   </motion.button>
-                </div>
-
-                <MagneticButton 
-                   className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-[#2563EB] active:scale-95 transition-all shadow-lg hover:shadow-blue-500/25 mt-4 flex items-center justify-center gap-2"
-                >
-                   {isLoading ? (
-                     <div className="flex items-center gap-2">
-                       <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                       Processing...
-                     </div>
-                   ) : (
-                     authMode === 'login' ? t('sign_in') : t('sign_up')
-                   )}
-                </MagneticButton>
-              </form>
-
-              <div className="mt-6 text-center">
-                 <button 
-                  onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
-                  className="text-sm font-bold text-slate-500 hover:text-[#2563EB] transition-colors"
-                 >
-                    {authMode === 'login' ? t('switch_to_signup') : t('switch_to_login')}
-                 </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <AuthModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+        initialMode={authMode} 
+      />
     </div>
   );
 }

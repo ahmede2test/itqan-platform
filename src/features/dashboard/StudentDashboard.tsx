@@ -1,8 +1,10 @@
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from 'framer-motion';
-import { BookOpen, FileText, BarChart2, User, Bell, Rocket, Globe, Eye, EyeOff, Camera, Play, Clock, Award, ChevronLeft, CheckCircle, X, Check, CreditCard, Upload } from 'lucide-react';
+import { BookOpen, FileText, BarChart2, User, Bell, Rocket, Globe, Eye, EyeOff, Camera, Play, Clock, Award, ChevronLeft, CheckCircle, X, Check, CreditCard, Upload, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
+import { supabase } from '../../lib/supabase';
 import '../../lib/i18n';
 import React from 'react';
 
@@ -72,8 +74,65 @@ const SkeletonCard = () => (
    </div>
 );
 
-const ProfileView = ({ onSave }: { onSave: () => void }) => {
+const ProfileView = ({ onSave, user, onUpdateImage }: { onSave: (data: any) => void, user: any, onUpdateImage: (type: 'profile' | 'cover', file: File) => void }) => {
    const [showPassword, setShowPassword] = useState(false);
+   const profileInputRef = useRef<HTMLInputElement>(null);
+   const coverInputRef = useRef<HTMLInputElement>(null);
+   const [saveStatus, setSaveStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+   
+   // Store initial data for dirty checking
+   const [originalData, setOriginalData] = useState({
+      name: user?.name || '',
+      email: user?.email || '',
+      profileImage: user?.profileImage,
+      coverImage: user?.coverImage
+   });
+
+   const [formData, setFormData] = useState({
+      name: user?.name || '',
+      email: user?.email || '',
+      password: ''
+   });
+
+   // Intelligent Dirty State detection
+   const isDirty = formData.name !== originalData.name || 
+                   formData.email !== originalData.email ||
+                   formData.password.length > 0 ||
+                   user?.profileImage !== originalData.profileImage ||
+                   user?.coverImage !== originalData.coverImage;
+   
+   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'profile' | 'cover') => {
+      const file = e.target.files?.[0];
+      if (file) {
+         onUpdateImage(type, file);
+      }
+   };
+
+   const handleSave = async () => {
+      setSaveStatus('loading');
+      try {
+         await onSave(formData);
+         setSaveStatus('success');
+         
+         // Sync originalData to new saved state
+         setOriginalData({
+            name: formData.name,
+            email: formData.email,
+            profileImage: user?.profileImage,
+            coverImage: user?.coverImage
+         });
+
+         // Clear password field
+         setFormData(prev => ({ ...prev, password: '' }));
+
+         // Use setTimeout to allow the user to see the success state
+         setTimeout(() => {
+            setSaveStatus('idle');
+         }, 3000);
+      } catch (err) {
+         setSaveStatus('idle');
+      }
+   };
    
    return (
       <motion.div 
@@ -117,58 +176,122 @@ const ProfileView = ({ onSave }: { onSave: () => void }) => {
          </div>
 
          {/* Profile Edit */}
-         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
-            <div className="h-32 bg-gradient-to-r from-[#2563EB]/10 to-[#7C3AED]/10 relative">
-               <button className="absolute top-4 right-4 px-4 py-2 bg-white/50 backdrop-blur-md rounded-full text-xs font-bold text-[#2563EB] hover:bg-white transition-all">
+         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden transition-all duration-200 ease-in-out">
+            <div className="h-48 bg-gradient-to-r from-[#2563EB] to-[#7C3AED] relative overflow-hidden">
+               {user?.coverImage && <img src={user.coverImage} className="w-full h-full object-cover opacity-90" alt="Cover" />}
+               <div className="absolute inset-0 bg-black/5" />
+               <button 
+                  onClick={() => coverInputRef.current?.click()}
+                  className="absolute top-6 right-6 px-5 py-2.5 bg-white/20 backdrop-blur-xl border border-white/30 rounded-full text-xs font-bold text-white hover:bg-white hover:text-[#2563EB] transition-all duration-200 ease-in-out z-10 shadow-lg"
+               >
                   Change Cover
                </button>
+               <input type="file" ref={coverInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'cover')} />
             </div>
-            <div className="px-8 pb-8">
-               <div className="relative -mt-16 mb-8 flex items-end justify-between">
-                  {/* Avatar Upload Section */}
-                  <div className="relative group">
-                     <div className="w-32 h-32 rounded-full border-4 border-white shadow-lg overflow-hidden bg-slate-100">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" className="w-full h-full object-cover" />
+
+            <div className="px-8 pb-10">
+               <div className="flex flex-col items-center">
+                  {/* Avatar Upload Section - LUXURY OVERLAP */}
+                  <div className="relative -mt-24 mb-6 group">
+                     <div className="w-44 h-44 rounded-full border-[6px] border-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] overflow-hidden bg-slate-50 relative z-20 transition-transform duration-200 ease-in-out group-hover:scale-[1.02]">
+                        <img 
+                           src={user?.profileImage || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id || 'Felix'}`} 
+                           alt="Profile" 
+                           className="w-full h-full object-cover" 
+                        />
                      </div>
-                     <button className="absolute bottom-2 right-2 p-2 bg-slate-900 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110">
-                        <Camera className="w-4 h-4" />
-                     </button>
-                  </div>
-                  <div className="flex gap-3">
-                     <button className="px-6 py-2 rounded-full bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-colors">Cancel</button>
                      <button 
-                        onClick={onSave}
-                        className="px-6 py-2 rounded-full bg-[#2563EB] text-white font-bold hover:bg-[#1d4ed8] hover:shadow-lg hover:shadow-blue-500/30 transition-all"
-                      >
-                        Save Changes
+                        onClick={() => profileInputRef.current?.click()}
+                        className="absolute bottom-4 right-4 p-3 bg-slate-900 text-white rounded-full shadow-xl opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-200 ease-in-out z-30 hover:scale-110 active:scale-95"
+                     >
+                        <Camera className="w-5 h-5" />
                      </button>
+                     <input type="file" ref={profileInputRef} className="hidden" accept="image/*" onChange={(e) => handleFileChange(e, 'profile')} />
                   </div>
+
+                  {/* Centered User Info */}
+                  <div className="text-center mb-10 space-y-1">
+                     <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">{user?.name || 'Guest User'}</h2>
+                     <p className="text-sm font-bold text-[#2563EB]/60 tracking-widest uppercase">{user?.email || 'student@itqan.com'}</p>
+                  </div>
+
+                  {/* Intelligent Save Button */}
+                  <AnimatePresence>
+                     {isDirty && (
+                        <motion.div 
+                           initial={{ opacity: 0, y: 20 }}
+                           animate={{ opacity: 1, y: 0 }}
+                           exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                           className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100]"
+                        >
+                           <button 
+                              onClick={handleSave}
+                              disabled={saveStatus === 'loading'}
+                              className={`flex items-center gap-3 px-10 py-4 rounded-full font-bold text-lg shadow-2xl transition-all duration-200 ease-in-out min-w-[200px] justify-center ${
+                                 saveStatus === 'success' 
+                                 ? 'bg-green-500 text-white' 
+                                 : 'bg-[#2563EB] text-white hover:bg-[#1d4ed8] hover:scale-105 active:scale-95 shadow-blue-500/40'
+                              }`}
+                           >
+                              {saveStatus === 'loading' ? (
+                                 <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : saveStatus === 'success' ? (
+                                 <>
+                                    <Check className="w-6 h-6" />
+                                    <span>Saved!</span>
+                                 </>
+                              ) : (
+                                 <span>Save Changes</span>
+                              )}
+                           </button>
+                        </motion.div>
+                     )}
+                  </AnimatePresence>
                </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                     <label className="text-sm font-bold text-slate-700">Full Name</label>
-                     <input type="text" defaultValue="Ahmed Osman" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                     <label className="text-sm font-bold text-slate-700 ml-1">Full Name</label>
+                     <input 
+                        type="text" 
+                        value={formData.name} 
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] transition-all duration-200 ease-in-out font-medium" 
+                        placeholder="Enter your full name"
+                     />
                   </div>
-                  <div className="space-y-2">
-                     <label className="text-sm font-bold text-slate-700">Email Address</label>
-                     <input type="email" defaultValue="ahmed@example.com" className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" />
+                  <div className="space-y-3">
+                     <label className="text-sm font-bold text-slate-700 ml-1">Email Address</label>
+                     <input 
+                        type="email" 
+                        value={formData.email} 
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] transition-all duration-200 ease-in-out font-medium"
+                        placeholder="your@email.com"
+                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                     <label className="text-sm font-bold text-slate-700">Password</label>
-                     <div className="relative">
+                  <div className="space-y-3 md:col-span-2">
+                     <label className="text-sm font-bold text-slate-700 ml-1">New Password</label>
+                     <div className="relative group/pass">
                         <input 
                            type={showPassword ? "text" : "password"} 
-                           defaultValue="password123" 
-                           className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all" 
+                           value={formData.password}
+                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                           placeholder="Enter new password to change"
+                           className="w-full px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] transition-all duration-200 ease-in-out font-medium" 
                         />
                         <button 
-                           onClick={() => setShowPassword(!showPassword)}
-                           className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#2563EB] transition-colors"
+                           type="button"
+                           onClick={(e) => {
+                              e.preventDefault();
+                              setShowPassword(!showPassword);
+                           }}
+                           className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#2563EB] transition-colors duration-200 p-2 rounded-xl hover:bg-white shadow-sm hover:shadow-md"
                         >
-                           {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                           {showPassword ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                         </button>
                      </div>
+                     <p className="text-xs text-slate-400 ml-1">Leave blank to keep current password</p>
                   </div>
                </div>
             </div>
@@ -448,6 +571,7 @@ const GradesView = () => {
 };
 
 export default function StudentDashboard() {
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
   const [activeTab, setActiveTab] = useState('courses');
@@ -471,12 +595,69 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [toast, setToast] = useState<{message: string} | null>(null);
+  const [userData, setUserData] = useState<any>(null);
 
   useEffect(() => {
-    // Simulate data fetching
-    setTimeout(() => {
-       setLoading(false);
-    }, 2500);
+    const handleSession = async () => {
+      // 1. Check current session
+      const { data: { session } } = await supabase.auth.getSession();
+      const savedUser = localStorage.getItem('itqan_user');
+      const localData = savedUser ? JSON.parse(savedUser) : null;
+      
+      if (session?.user) {
+        // Fetch or update local user data
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        // FALLBACK/FAILSAFE: If user exists in Auth but not in public.users, create it now
+        if (!profile && localData?.name) {
+           console.log('User profile missing in DB, attempting failsafe sync...');
+           await supabase.from('users').upsert({
+              id: session.user.id,
+              name: localData.name,
+              email: session.user.email,
+              role: localData.role || 'STUDENT'
+           });
+        }
+
+        const fullData = {
+          id: session.user.id,
+          email: session.user.email,
+          // PRIORITY: 1. DB name, 2. Local fallback, 3. Email prefix
+          name: profile?.name || localData?.name || session.user.email?.split('@')[0],
+          role: profile?.role || localData?.role || 'STUDENT',
+          profileImage: profile?.profileImage || localData?.profileImage,
+          coverImage: profile?.coverImage || localData?.coverImage
+        };
+
+        setUserData(fullData);
+        localStorage.setItem('itqan_user', JSON.stringify(fullData));
+        setLoading(false);
+      } else if (localData) {
+        // We have local data (e.g. from recent signup) but no active session yet (maybe confirmation pending)
+        // We allow them to see the dashboard but with a flag or restricted state if needed
+        setUserData(localData);
+        setLoading(false);
+      } else {
+        navigate('/');
+      }
+    };
+
+    handleSession();
+
+    // 2. Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        localStorage.removeItem('itqan_user');
+        navigate('/');
+      }
+    });
+
+    // Existing notification logic...
+
 
     // Initial check for notifications
     const checkNotifications = () => {
@@ -506,12 +687,77 @@ export default function StudentDashboard() {
        }, 3000);
     }
     
-    return () => window.removeEventListener('storage', checkNotifications);
+    return () => {
+       window.removeEventListener('storage', checkNotifications);
+       subscription.unsubscribe();
+    };
   }, []);
 
   const showToast = (message: string) => {
-     setToast({ message });
-     setTimeout(() => setToast(null), 3000);
+      setToast({ message });
+      setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleLogout = async () => {
+     await supabase.auth.signOut();
+     localStorage.removeItem('itqan_user');
+     navigate('/');
+  };
+
+  const updateImage = async (type: 'profile' | 'cover', file: File) => {
+     if (!userData?.id) return;
+
+     // 1. Instant local preview for better UX
+     const localUrl = URL.createObjectURL(file);
+     const previewData = { ...userData };
+     if (type === 'profile') previewData.profileImage = localUrl;
+     else previewData.coverImage = localUrl;
+     setUserData(previewData);
+
+     try {
+        setLoading(true);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${userData.id}/${type}_${Date.now()}.${fileExt}`;
+        const filePath = fileName;
+
+        // 2. Upload to Supabase Storage (public 'profiles' bucket)
+        const { error: uploadError } = await supabase.storage
+           .from('profiles')
+           .upload(filePath, file, { 
+              upsert: true,
+              cacheControl: '3600'
+           });
+
+        if (uploadError) throw uploadError;
+
+        // 3. Get Public URL
+        const { data: { publicUrl } } = supabase.storage
+           .from('profiles')
+           .getPublicUrl(filePath);
+
+        // 4. Update Database profile directly
+        const { error: dbError } = await supabase
+           .from('users')
+           .update({ [type === 'profile' ? 'profileImage' : 'coverImage']: publicUrl })
+           .eq('id', userData.id);
+
+        if (dbError) throw dbError;
+
+        // 5. Finalize state with the permanent URL
+        const finalData = { ...userData, [type === 'profile' ? 'profileImage' : 'coverImage']: publicUrl };
+        setUserData(finalData);
+        localStorage.setItem('itqan_user', JSON.stringify(finalData));
+        showToast('Image updated successfully!');
+        
+     } catch (err: any) {
+        console.error('Image upload failed:', err);
+        showToast(`Upload failed: ${err.message || 'Check storage permissions'}`);
+        // Revert to original data on failure
+        const saved = localStorage.getItem('itqan_user');
+        if (saved) setUserData(JSON.parse(saved));
+     } finally {
+        setLoading(false);
+     }
   };
 
 
@@ -604,11 +850,64 @@ export default function StudentDashboard() {
       case 'grades':
         return <GradesView key="grades" />;
       case 'profile':
-         return <ProfileView key="profile" onSave={() => showToast(t('success_toast'))} />;
+         return (
+            <ProfileView 
+               key="profile" 
+               user={userData} 
+               onUpdateImage={updateImage} 
+               onSave={async (data: any) => {
+                  if (!userData?.id) return;
+                  
+                  try {
+                     setLoading(true);
+                     // 1. Update Database (Name/Email)
+                     const { error: dbError } = await supabase
+                        .from('users')
+                        .update({ 
+                           name: data.name,
+                           email: data.email
+                        })
+                        .eq('id', userData.id);
+
+                     if (dbError) throw dbError;
+
+                     // 2. Update Password (if provided)
+                     if (data.password && data.password.length > 0) {
+                        const { error: authError } = await supabase.auth.updateUser({
+                           password: data.password
+                        });
+                        if (authError) throw authError;
+                        showToast('Profile and Password updated!');
+                     } else {
+                        showToast('Profile updated successfully!');
+                     }
+
+                     const updated = { ...userData, ...data };
+                     // Don't save password to local storage/state
+                     delete (updated as any).password;
+                     
+                     setUserData(updated);
+                     localStorage.setItem('itqan_user', JSON.stringify(updated));
+                     
+                     confetti({
+                        particleCount: 150,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: ['#2563EB', '#7C3AED']
+                     });
+                  } catch (err: any) {
+                     console.error('Save failed:', err);
+                     showToast(`Error: ${err.message}`);
+                  } finally {
+                     setLoading(false);
+                  }
+               }} 
+            />
+         );
       case 'billing':
          return <BillingView key="billing" />;
       default:
-        return null;
+         return null;
     }
   };
 
@@ -674,17 +973,29 @@ export default function StudentDashboard() {
                       <span className="text-sm relative z-10">{t(item.label)}</span>
                     </button>
                   ))}
-                </nav>
+
+                   <button 
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-4 px-4 py-3 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all duration-300 group mt-4"
+                   >
+                       <LogOut className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                       <span className="text-sm font-bold">Logout</span>
+                   </button>
+                 </nav>
 
                 <div className="p-4 border-t border-[#2563EB]/10">
                    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/50 transition-colors cursor-pointer group">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#2563EB] to-[#7C3AED] p-[2px] shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
                          <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
-                            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+                            <img 
+                              src={userData?.profileImage || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"} 
+                              alt="User" 
+                              className="w-full h-full object-cover"
+                            />
                          </div>
                       </div>
                       <div>
-                         <p className="text-sm font-bold text-slate-800 group-hover:text-[#2563EB] transition-colors">Ahmed Osman</p>
+                         <p className="text-sm font-bold text-slate-800 group-hover:text-[#2563EB] transition-colors">{userData?.name || t('student')}</p>
                          <p className="text-xs text-slate-500">{t('student')}</p>
                       </div>
                    </div>
@@ -696,7 +1007,9 @@ export default function StudentDashboard() {
                 {/* Top Header */}
                 <header className="h-24 flex items-center justify-between px-8 z-10">
                   <div>
-                     <h1 className="text-2xl font-bold text-slate-900">{t('welcome_back')}</h1>
+                     <h1 className="text-2xl font-bold text-slate-900">
+                        {t('welcome_back')}{userData?.name ? `, ${userData.name}` : ''}!
+                     </h1>
                      <p className="text-slate-500 text-sm">{t('continue_learning')}</p>
                   </div>
                   
