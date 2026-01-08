@@ -56,20 +56,17 @@ const TiltCard = ({ children, className, ...props }: { children: React.ReactNode
 };
 
 const SkeletonCard = () => (
-   <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden h-64">
-      <div className="animate-pulse space-y-4">
-         <div className="flex justify-between items-start">
-            <div className="w-14 h-14 bg-slate-200 rounded-2xl" />
-            <div className="w-16 h-8 bg-slate-200 rounded-lg" />
+   <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden h-64 flex flex-col justify-between">
+      <div className="animate-pulse space-y-6">
+         <div className="h-40 bg-slate-100 -mx-6 -mt-6 rounded-t-2xl" />
+         <div className="space-y-3">
+            <div className="h-4 bg-slate-100 rounded-full w-3/4" />
+            <div className="h-3 bg-slate-50 rounded-full w-1/2" />
          </div>
-         <div className="h-4 bg-slate-200 rounded w-3/4 mt-8" />
-         <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mt-6">
-            <div className="h-full bg-slate-200 w-1/2" />
-         </div>
-         <div className="flex justify-between mt-4">
-            <div className="w-8 h-3 bg-slate-200 rounded" />
-            <div className="w-8 h-3 bg-slate-200 rounded" />
-         </div>
+      </div>
+      <div className="flex justify-between items-center mt-6">
+         <div className="w-20 h-4 bg-slate-50 rounded-full" />
+         <div className="w-12 h-4 bg-slate-50 rounded-full" />
       </div>
    </div>
 );
@@ -411,7 +408,291 @@ const BillingView = () => {
    );
 };
 
-const CoursePlayer = ({ onBack }: { onBack: () => void }) => {
+const PaymentSubmissionModal = ({ isOpen, onClose, course, onPaymentSubmitted }: { isOpen: boolean, onClose: () => void, course: any, onPaymentSubmitted: () => void }) => {
+   const [file, setFile] = useState<File | null>(null);
+   const [isUploading, setIsUploading] = useState(false);
+   const fileInputRef = useRef<HTMLInputElement>(null);
+
+   const [submitted, setSubmitted] = useState(false);
+
+   const handleUpload = async () => {
+      if (!file) return;
+
+      // 1. Validation
+      if (!file.type.startsWith('image/')) {
+         alert('Please upload an image file (PNG, JPG, etc.)');
+         return;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+         alert('File is too large. Maximum size is 5MB.');
+         return;
+      }
+
+      setIsUploading(true);
+      try {
+         // Get fresh session to ensure user_id is exact auth.uid()
+         const { data: { session } } = await supabase.auth.getSession();
+         if (!session?.user) throw new Error('Action unauthorized. Please log in.');
+         
+         const userId = session.user.id;
+         const fileExt = file.name.split('.').pop();
+         const fileName = `${userId}/${course.id}_${Date.now()}.${fileExt}`;
+         
+         const { error: uploadError } = await supabase.storage
+            .from('payments')
+            .upload(fileName, file, {
+               cacheControl: '3600',
+               upsert: true
+            });
+
+         if (uploadError) {
+            if (uploadError.message.includes('bucket not found')) {
+               throw new Error('Storage bucket "payments" not found. Please create it in your Supabase Dashboard -> Storage.');
+            }
+            throw uploadError;
+         }
+
+         const { data: { publicUrl } } = supabase.storage
+            .from('payments')
+            .getPublicUrl(fileName);
+
+         const { error: requestError } = await supabase.from('payment_requests').insert({
+            user_id: userId,
+            course_id: course.id,
+            amount: 99.00,
+            status: 'pending',
+            receipt_url: publicUrl
+         }).select();
+
+         if (requestError) {
+            console.error('Database insertion error details:', requestError);
+            throw new Error(`Database Error: ${requestError.message} (${requestError.code})`);
+         }
+
+         // Add notification for admin
+         const notifications = JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]');
+         notifications.unshift({
+            id: Date.now(),
+            message: `💰 Payment Request: ${session.user.email} submitted proof for "${course?.title}"`,
+            type: 'warning',
+            timestamp: new Date().toISOString(),
+            courseId: course?.id,
+            userId: userId
+         });
+         localStorage.setItem('itqan_global_notifications', JSON.stringify(notifications.slice(0, 50)));
+
+         setSubmitted(true);
+         onPaymentSubmitted();
+         
+         // Auto-close after 3 seconds
+         setTimeout(() => {
+            onClose();
+            // Reset state
+            setSubmitted(false);
+            setFile(null);
+         }, 4000);
+
+      } catch (err: any) {
+         console.error('Full Payment Upload Error:', err);
+         alert(err.message || 'Failed to upload proof. Please try again.');
+      } finally {
+         setIsUploading(false);
+      }
+   };
+
+   return (
+      <AnimatePresence>
+         {isOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+               <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={onClose}
+                  className="absolute inset-0 bg-slate-900/40 backdrop-blur-md"
+               />
+               <motion.div 
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  className="relative bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl overflow-hidden"
+               >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -mr-16 -mt-16" />
+                  
+                  {!submitted ? (
+                     <>
+                        <div className="flex justify-between items-center mb-6">
+                           <h3 className="text-2xl font-black text-slate-800 tracking-tight">Access Course</h3>
+                           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                              <X className="w-5 h-5 text-slate-400" />
+                           </button>
+                        </div>
+
+                  <div className="bg-slate-50 p-6 rounded-3xl mb-8 border border-slate-100">
+                     <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-1">Total to Pay</h4>
+                     <p className="text-4xl font-black text-[#2563EB]">$99<span className="text-lg opacity-50 ml-1">.00</span></p>
+                  </div>
+
+                  <div className="space-y-6">
+                     <div>
+                        <h5 className="text-sm font-bold text-slate-700 mb-3">Upload Transfer Receipt</h5>
+                        <input 
+                           type="file" 
+                           ref={fileInputRef}
+                           onChange={(e) => setFile(e.target.files?.[0] || null)}
+                           className="hidden" 
+                           accept="image/*" 
+                        />
+                        <button 
+                           onClick={() => fileInputRef.current?.click()}
+                           className={`w-full aspect-video rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all ${file ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100/50'}`}
+                        >
+                           {file ? (
+                              <>
+                                 <CheckCircle className="w-8 h-8 text-green-500" />
+                                 <span className="text-xs font-bold text-green-600 uppercase tracking-widest">{file.name}</span>
+                              </>
+                           ) : (
+                              <>
+                                 <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm">
+                                    <Upload className="w-6 h-6 text-[#2563EB]" />
+                                 </div>
+                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Image</span>
+                              </>
+                           )}
+                        </button>
+                     </div>
+
+                     <button 
+                        onClick={handleUpload}
+                        disabled={!file || isUploading}
+                        className="w-full py-5 bg-[#2563EB] text-white rounded-2xl font-black text-lg hover:bg-[#1d4ed8] hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-blue-500/20 disabled:opacity-50 disabled:grayscale disabled:scale-100"
+                     >
+                        {isUploading ? 'Verifying...' : 'Submit Request'}
+                     </button>
+                     
+                     <p className="text-[10px] text-center text-slate-400 font-medium leading-relaxed">
+                        By submitting, you agree to our terms. Access is typically granted within 2-4 hours after verification.
+                     </p>
+                  </div>
+                     </>
+                  ) : (
+                     <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="py-12 flex flex-col items-center text-center"
+                     >
+                        <div className="w-24 h-24 bg-green-50 rounded-[2.5rem] flex items-center justify-center mb-8 relative">
+                           <motion.div 
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", delay: 0.2 }}
+                              className="absolute inset-0 bg-green-500/10 rounded-full blur-2xl"
+                           />
+                           <CheckCircle className="w-12 h-12 text-green-500 relative z-10" />
+                        </div>
+                        
+                        <h3 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Thank You!</h3>
+                        <p className="text-slate-500 font-medium leading-relaxed mb-8 px-4">
+                           Your payment proof has been successfully submitted. Our team will verify it and unlock your access within <span className="text-[#2563EB] font-bold">2-4 hours</span>.
+                        </p>
+                        
+                        <div className="w-full h-1.5 bg-slate-50 rounded-full overflow-hidden mb-2">
+                           <motion.div 
+                              initial={{ width: "100%" }}
+                              animate={{ width: "0%" }}
+                              transition={{ duration: 4, ease: "linear" }}
+                              className="h-full bg-[#2563EB]"
+                           />
+                        </div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Closing Automatically</p>
+                     </motion.div>
+                  )}
+               </motion.div>
+            </div>
+         )}
+      </AnimatePresence>
+   );
+};
+
+const CoursePlayer = ({ course, isEnrolled, onBack, userData }: { course: any, isEnrolled: boolean, onBack: () => void, userData: any }) => {
+   const [paymentStatus, setPaymentStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none');
+   const [showPaymentModal, setShowPaymentModal] = useState(false);
+   const isAdmin = userData?.email === 'ahmed.osmanis.fcai@gmail.com';
+   
+   const fetchPaymentStatus = async () => {
+      if (!course?.id || !userData?.id) return;
+      try {
+         const { data, error } = await supabase
+            .from('payment_requests')
+            .select('status')
+            .eq('user_id', userData.id)
+            .eq('course_id', course.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+         
+         if (error) {
+            console.error('Payment status fetch error:', error);
+            return;
+         }
+
+         if (data && data.length > 0) {
+            setPaymentStatus(data[0].status as any);
+         }
+      } catch (err) {
+         console.error('Failed to fetch payment status:', err);
+      }
+   };
+
+   useEffect(() => {
+      fetchPaymentStatus();
+
+      // Real-time subscription to auto-unlock
+      const paymentSubscription = supabase
+         .channel(`payment_${course?.id}`)
+         .on('postgres_changes', { 
+            event: '*', 
+            schema: 'public', 
+            table: 'payment_requests',
+            filter: `user_id=eq.${userData?.id}` 
+         }, (payload) => {
+            console.log('Payment status changed:', payload);
+            fetchPaymentStatus();
+         })
+         .subscribe();
+
+      return () => {
+         paymentSubscription.unsubscribe();
+      };
+   }, [course?.id, userData?.id]);
+
+
+   const hasAccess = isEnrolled || isAdmin || paymentStatus === 'approved';
+
+   // Guard for missing course data
+   if (!course) {
+      return (
+         <div className="absolute inset-0 z-50 bg-[#0f172a] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+               <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+               <p className="text-slate-400 font-bold tracking-widest uppercase text-xs">Loading Course...</p>
+            </div>
+         </div>
+      );
+   }
+
+   const handleRequestAccess = () => {
+      setShowPaymentModal(true);
+   };
+
+   const getYouTubeEmbedUrl = (url: string) => {
+      if (!url) return '';
+      let videoId = '';
+      if (url.includes('v=')) videoId = url.split('v=')[1].split('&')[0];
+      else if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`;
+   };
+
    return (
       <motion.div 
          initial={{ opacity: 0, scale: 0.9 }}
@@ -421,53 +702,102 @@ const CoursePlayer = ({ onBack }: { onBack: () => void }) => {
          className="absolute inset-0 z-50 bg-[#0f172a] text-white overflow-hidden flex"
       >
          {/* Sidebar */}
-         <div className="w-80 bg-[#1e293b] border-r border-slate-700 flex flex-col">
+         <div className="w-80 bg-[#1e293b] border-r border-slate-700 flex flex-col hidden md:flex">
             <div className="h-20 flex items-center px-6 border-b border-slate-700">
                <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group">
                   <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                  <span className="font-bold">Back to Dashboard</span>
+                  <span className="font-bold uppercase tracking-widest text-xs">Exit Classroom</span>
                </button>
             </div>
             <div className="p-6">
-               <h2 className="text-xl font-bold mb-2">FullStack Mastery</h2>
-               <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden mb-6">
-                  <div className="w-[75%] h-full bg-[#2563EB]" />
-               </div>
+               <h2 className="text-xl font-black mb-1">{course?.title || 'Course Content'}</h2>
+               <p className="text-xs text-slate-400 mb-6 uppercase tracking-widest font-bold">Curriculum</p>
                
-               <div className="space-y-4">
-                  {[
-                     { title: "Introduction to React", duration: "12:45", active: false, complete: true },
-                     { title: "Components & Props", duration: "18:20", active: false, complete: true },
-                     { title: "State Management", duration: "25:10", active: true, complete: false },
-                     { title: "Hooks Deep Dive", duration: "30:00", active: false, complete: false },
-                  ].map((lesson, i) => (
-                     <div key={i} className={`p-4 rounded-xl cursor-pointer transition-all ${lesson.active ? 'bg-[#2563EB] shadow-lg shadow-blue-500/20' : 'hover:bg-slate-800'}`}>
-                        <div className="flex justify-between items-center mb-1">
-                           <h4 className={`text-sm font-bold ${lesson.active ? 'text-white' : 'text-slate-300'}`}>Lesson {i + 1}</h4>
-                           {lesson.complete && <CheckCircle className="w-4 h-4 text-[#10B981]" />}
-                           {lesson.active && <Play className="w-4 h-4 text-white fill-white" />}
-                        </div>
-                        <p className={`text-sm ${lesson.active ? 'text-blue-100' : 'text-slate-500'}`}>{lesson.title}</p>
-                        <p className={`text-xs mt-2 ${lesson.active ? 'text-blue-200' : 'text-slate-600'}`}>{lesson.duration}</p>
+               <div className="space-y-3">
+                  <div className="p-4 rounded-xl bg-[#2563EB] shadow-lg shadow-blue-500/20 border border-blue-400/20">
+                     <div className="flex justify-between items-center mb-1">
+                        <h4 className="text-[10px] font-black text-blue-100 uppercase tracking-widest">Active Lesson</h4>
+                        <Play className="w-3 h-3 text-white fill-white" />
                      </div>
-                  ))}
+                     <p className="text-sm font-bold text-white line-clamp-1">{course?.title}</p>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-slate-700/50 opacity-40 grayscale">
+                     <div className="flex justify-between items-center mb-1">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Next Up</h4>
+                     </div>
+                     <p className="text-sm font-bold text-slate-400">Bonus Materials</p>
+                  </div>
                </div>
             </div>
          </div>
 
-         {/* Main Player */}
+         {/* Main Player Area */}
          <div className="flex-1 flex flex-col relative bg-black">
-             <div className="flex-1 flex items-center justify-center relative group">
-                {/* Fake Video Player UI */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/80 z-10 pointer-events-none" />
-                <button className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:scale-110 transition-transform z-20 shadow-2xl">
-                   <Play className="w-10 h-10 fill-white ml-2" />
-                </button>
-                <div className="absolute bottom-0 left-0 right-0 p-8 z-20">
-                   <h1 className="text-3xl font-bold mb-2">State Management in 2024</h1>
-                   <p className="text-slate-300">Section 3 • Lesson 3</p>
-                </div>
-             </div>
+            {hasAccess ? (
+               <div className="w-full h-full">
+                  <iframe 
+                     src={getYouTubeEmbedUrl(course?.videoUrl)}
+                     className="w-full h-full border-none"
+                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                     allowFullScreen
+                  />
+               </div>
+            ) : (
+               <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 opacity-95" />
+                  
+                  {/* Luxury Locked UI */}
+                  <div className="relative z-10 max-w-md">
+                     <div className="w-24 h-24 bg-white/5 backdrop-blur-3xl rounded-[2.5rem] border border-white/10 flex items-center justify-center mx-auto mb-8 shadow-2xl relative">
+                        <div className="absolute inset-0 bg-blue-500/20 blur-2xl rounded-full" />
+                        <EyeOff className="w-10 h-10 text-blue-400 relative z-10" />
+                     </div>
+                     
+                     <h2 className="text-4xl font-black text-white mb-4 tracking-tight leading-tight uppercase">
+                        {paymentStatus === 'pending' ? 'Verification Pending' : 'Classroom Locked'}
+                     </h2>
+                     <p className="text-slate-400 text-lg mb-10 font-medium leading-relaxed">
+                        {paymentStatus === 'pending' 
+                           ? "Your payment is being verified by our team. Access will be granted shortly." 
+                           : "This premium training is reserved for enrolled students. Unlock it now to accelerate your mastery."}
+                     </p>
+                     
+                     <div className="flex flex-col gap-4 w-full">
+                        {paymentStatus === 'pending' ? (
+                           <div className="px-10 py-5 bg-white/5 border border-white/10 text-white rounded-2xl font-bold flex items-center justify-center gap-3 w-full">
+                              <Clock className="w-6 h-6 text-orange-400" /> Payment Under Review
+                           </div>
+                        ) : (
+                           <button 
+                              onClick={handleRequestAccess}
+                              className="px-10 py-5 bg-[#2563EB] text-white rounded-2xl font-black text-lg hover:bg-[#1d4ed8] hover:scale-105 active:scale-95 transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 w-full"
+                           >
+                              <CreditCard className="w-6 h-6" /> Unlock Full Access
+                           </button>
+                        )}
+                        <button onClick={onBack} className="text-slate-500 font-bold hover:text-white transition-colors py-2 uppercase tracking-widest text-[10px]">
+                           Maybe Later
+                        </button>
+                     </div>
+                  </div>
+
+                  <PaymentSubmissionModal 
+                     isOpen={showPaymentModal}
+                     onClose={() => setShowPaymentModal(false)}
+                     course={course}
+                     onPaymentSubmitted={fetchPaymentStatus}
+                  />
+               </div>
+            )}
+
+            {/* Floatback button for mobile */}
+            <button 
+               onClick={onBack}
+               className="md:hidden absolute top-6 left-6 p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 text-white z-[60]"
+            >
+               <ChevronLeft className="w-6 h-6" />
+            </button>
          </div>
       </motion.div>
    );
@@ -596,6 +926,40 @@ export default function StudentDashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [toast, setToast] = useState<{message: string} | null>(null);
   const [userData, setUserData] = useState<any>(null);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<string[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+
+  const fetchDashboardData = async (userId: string) => {
+     // Check for cached data to prevent flicker
+     const cachedCourses = localStorage.getItem('itqan_student_courses');
+     const cachedEnrollments = localStorage.getItem('itqan_student_enrollments');
+     
+     if (cachedCourses) setCourses(JSON.parse(cachedCourses));
+     if (cachedEnrollments) setEnrollments(JSON.parse(cachedEnrollments));
+     if (cachedCourses || cachedEnrollments) setLoading(false);
+
+     try {
+        const [coursesRes, enrollmentsRes] = await Promise.all([
+           supabase.from('courses').select('*').eq('status', 'published').order('createdAt', { ascending: false }),
+           supabase.from('enrollments').select('courseId').eq('userId', userId)
+        ]);
+        
+        if (coursesRes.data) {
+           setCourses(coursesRes.data);
+           localStorage.setItem('itqan_student_courses', JSON.stringify(coursesRes.data));
+        }
+        if (enrollmentsRes.data) {
+           const enrolledIds = enrollmentsRes.data.map((e: any) => e.courseId);
+           setEnrollments(enrolledIds);
+           localStorage.setItem('itqan_student_enrollments', JSON.stringify(enrolledIds));
+        }
+     } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+     } finally {
+        setLoading(false);
+     }
+  };
 
   useEffect(() => {
     const handleSession = async () => {
@@ -635,11 +999,11 @@ export default function StudentDashboard() {
 
         setUserData(fullData);
         localStorage.setItem('itqan_user', JSON.stringify(fullData));
+        await fetchDashboardData(session.user.id);
         setLoading(false);
       } else if (localData) {
-        // We have local data (e.g. from recent signup) but no active session yet (maybe confirmation pending)
-        // We allow them to see the dashboard but with a flag or restricted state if needed
         setUserData(localData);
+        if (localData.id) await fetchDashboardData(localData.id);
         setLoading(false);
       } else {
         navigate('/');
@@ -692,6 +1056,68 @@ export default function StudentDashboard() {
        subscription.unsubscribe();
     };
   }, []);
+
+  // 3. Real-time Global Sync for Enrollments/Access
+  useEffect(() => {
+    if (!userData?.id) return;
+
+    console.log('📡 StudentDashboard: Initializing Global Enrollment Listener');
+    const enrollmentChannel = supabase
+       .channel('enrollment-updates', {
+          config: {
+             broadcast: { ack: true }
+          }
+       })
+       .on('broadcast', { event: 'enrollment-approved' }, (payload: any) => {
+          console.log('📡 Global: Received enrollment approval:', payload);
+          
+          if (payload.payload?.userId === userData.id) {
+             const courseId = payload.payload.courseId;
+             const courseName = payload.payload.courseName;
+
+             // Instantly update enrollments state
+             setEnrollments(prev => [...new Set([...prev, courseId])]);
+             
+             // Visual feedback
+             showToast(`🎉 Course Unlocked: ${courseName || 'New Course'}`);
+             confetti({
+                particleCount: 150,
+                spread: 100,
+                origin: { y: 0.6 },
+                colors: ['#2563EB', '#7C3AED', '#10B981']
+             });
+          }
+       })
+       .on('broadcast', { event: 'enrollment-cancelled' }, (payload: any) => {
+          console.log('📡 Global: Received enrollment cancellation:', payload);
+          
+          if (payload.payload?.userId === userData.id) {
+             const courseId = payload.payload.courseId;
+             const courseName = payload.payload.courseName;
+
+             // Instantly update enrollments state
+             setEnrollments(prev => prev.filter(id => id !== courseId));
+             
+             // Handle Classroom "Kick-out" if active
+             if (viewMode === 'player' && selectedCourse?.id === courseId) {
+                console.log('🔒 Real-time Kick-out triggered for course:', courseId);
+                setViewMode('dashboard');
+                setSelectedCourse(null);
+                alert(`⚠️ Access Revoked: "${courseName || 'Course'}" has been locked by admin.`);
+             } else {
+                showToast(`⚠️ Access Revoked for ${courseName || 'a course'}`);
+             }
+          }
+       })
+       .subscribe((status) => {
+          console.log('📡 Global Enrollment Channel Status:', status);
+       });
+
+    return () => {
+       console.log('📡 Cleaning up Global Enrollment Listener');
+       supabase.removeChannel(enrollmentChannel);
+    };
+  }, [userData?.id, viewMode, selectedCourse]); // Recalculate if these change to keep closures fresh
 
   const showToast = (message: string) => {
       setToast({ message });
@@ -780,47 +1206,79 @@ export default function StudentDashboard() {
                     <button className="text-sm font-bold text-[#2563EB] hover:text-[#7C3AED] transition-colors">{t('view_all')}</button>
                  </div>
                  
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {loading ? (
                         [1, 2, 3].map(i => <SkeletonCard key={i} />)
+                    ) : courses.length > 0 ? (
+                        courses.map((course) => {
+                           const isEnrolled = enrollments.includes(course.id);
+                           const isMasterAdmin = userData?.email === 'ahmed.osmanis.fcai@gmail.com';
+                           const hasAccess = isEnrolled || isMasterAdmin;
+
+                           return (
+                              <TiltCard 
+                                 key={course.id}
+                                 variants={itemVariants}
+                                 className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden group cursor-pointer"
+                                 onClick={() => {
+                                    setSelectedCourse(course);
+                                    setViewMode('player');
+                                 }}
+                              >
+                                 <div className="relative h-48 -mx-6 -mt-6 mb-6 overflow-hidden">
+                                    {course.thumbnailUrl ? (
+                                       <img src={course.thumbnailUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={course.title} />
+                                    ) : (
+                                       <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200" />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
+                                    
+                                    {!hasAccess && (
+                                       <div className="absolute top-4 right-4 p-3 bg-black/40 backdrop-blur-md rounded-2xl border border-white/20">
+                                          <EyeOff className="w-4 h-4 text-white" />
+                                       </div>
+                                    )}
+                                    
+                                    {hasAccess && (
+                                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-xl flex items-center justify-center border border-white/30 text-white">
+                                             <Play className="w-6 h-6 fill-white ml-1" />
+                                          </div>
+                                       </div>
+                                    )}
+                                 </div>
+
+                                 <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                       <span className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full">Academy Course</span>
+                                       {hasAccess && <CheckCircle className="w-4 h-4 text-green-500" />}
+                                    </div>
+                                    <h3 className="text-xl font-bold text-slate-800 line-clamp-2 leading-tight">{course.title}</h3>
+                                    
+                                    <div className="grid grid-cols-2 gap-4 pt-2">
+                                       <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                                          <Play className="w-3 h-3" /> Video Training
+                                       </div>
+                                       {hasAccess ? (
+                                          <div className="flex items-center gap-2 text-green-500 text-xs font-bold uppercase tracking-widest">
+                                             <Check className="w-3 h-3" /> Unlocked
+                                          </div>
+                                       ) : (
+                                          <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                                             <CreditCard className="w-3 h-3" /> Premium
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
+                              </TiltCard>
+                           );
+                        })
                     ) : (
-                        [
-                        { course: "Advanced React Patterns", progress: 75, icon: BookOpen, color: "text-[#2563EB]", bg: "bg-[#2563EB]/10" },
-                        { course: "UI/UX Principles", progress: 45, icon: FileText, color: "text-[#7C3AED]", bg: "bg-[#7C3AED]/10" },
-                        { course: "Database Architecture", progress: 100, icon: BarChart2, color: "text-[#10B981]", bg: "bg-[#10B981]/10" }
-                        ].map((item, i) => (
-                       <TiltCard 
-                          key={i}
-                          variants={itemVariants}
-                          className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden group cursor-pointer"
-                       >
-                          <div onClick={() => setViewMode('player')}>
-                          
-                          <div className="flex justify-between items-start mb-6 relative">
-                             <div className={`w-14 h-14 rounded-2xl ${item.bg} ${item.color} flex items-center justify-center shadow-inner`}>
-                                <item.icon className="w-7 h-7" />
-                             </div>
-                             <span className="text-3xl font-extrabold text-slate-900">{item.progress}%</span>
-                          </div>
-                          
-                          <h3 className="font-bold text-lg mb-4 text-slate-800">{item.course}</h3>
-                          
-                          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                             <motion.div 
-                               initial={{ width: 0 }}
-                               animate={{ width: `${item.progress}%` }}
-                               transition={{ type: "spring", stiffness: 50, damping: 15, delay: 0.5 + (i * 0.2) }}
-                               className="h-full bg-gradient-to-r from-[#2563EB] to-[#7C3AED] rounded-full shadow-[0_0_10px_rgba(37,99,235,0.5)]" 
-                             />
-                          </div>
-                          
-                             <div className="mt-4 flex justify-between text-xs font-bold text-slate-400">
-                                <span>0%</span>
-                                <span>100%</span>
-                             </div>
-                          </div>
-                       </TiltCard>
-                    )))}
+                       <div className="col-span-full py-20 text-center bg-white rounded-[3rem] border border-slate-100">
+                          <BookOpen className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                          <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">No courses available in your region.</p>
+                       </div>
+                    )}
                  </div>
               </section>
 
@@ -1041,11 +1499,16 @@ export default function StudentDashboard() {
                                     <h3 className="font-bold text-slate-800">{t('notifications')}</h3>
                                     <span className="text-xs bg-[#2563EB]/10 text-[#2563EB] px-2 py-1 rounded-full font-bold">3 {t('new')}</span>
                                  </div>
-                                 <div className="space-y-3 max-h-80 overflow-y-auto">
-                                    {(JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]') as any[]).length === 0 ? (
-                                       <p className="text-center text-sm text-slate-400 py-4">No new notifications</p>
-                                    ) : (
-                                       (JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]') as any[]).map((notif, i) => (
+                                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                                    {(() => {
+                                       const global = JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]');
+                                       const personal = JSON.parse(localStorage.getItem(`itqan_notifications_${userData?.id}`) || '[]');
+                                       const combined = [...personal, ...global].sort((a, b) => b.id - a.id);
+                                       
+                                       return combined.length === 0 ? (
+                                          <p className="text-center text-sm text-slate-400 py-4">No new notifications</p>
+                                       ) : (
+                                          combined.map((notif, i) => (
                                           <motion.div 
                                              key={notif.id || i}
                                              initial={{ opacity: 0, x: -20 }}
@@ -1061,8 +1524,9 @@ export default function StudentDashboard() {
                                                 <p className="text-xs text-slate-400 mt-1">{new Date(notif.timestamp).toLocaleTimeString()}</p>
                                              </div>
                                           </motion.div>
-                                       ))
-                                    )}
+                                          ))
+                                       );
+                                    })()}
                                  </div>
                                  <button className="w-full mt-4 py-2 text-xs font-bold text-center text-slate-500 hover:text-[#2563EB] transition-colors">
                                     {t('mark_all_read')}
@@ -1080,9 +1544,18 @@ export default function StudentDashboard() {
                    </AnimatePresence>
                 </div>
               </main>
-          </motion.div>
+           </motion.div>
         ) : (
-          <CoursePlayer key="player" onBack={() => setViewMode('dashboard')} />
+            <CoursePlayer 
+               key="player"
+               course={selectedCourse} 
+               isEnrolled={enrollments.includes(selectedCourse?.id || '')}
+               userData={userData}
+               onBack={() => {
+                  setViewMode('dashboard');
+                  setSelectedCourse(null);
+               }} 
+            />
         )}
       </AnimatePresence>
 
