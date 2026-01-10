@@ -1,126 +1,35 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, Users, BookOpen, Settings, Bell, Search, Upload, Plus, Globe, Trash2, Edit2, Rocket, CheckCircle, X, CreditCard, LogOut, Shield, Camera, Eye, RefreshCcw } from 'lucide-react';
+import { 
+  BarChart3, Users, BookOpen, Settings, Bell, Search, Plus, 
+  Globe, Rocket, X, CreditCard, LogOut, Shield, Camera, RefreshCcw, Trash2
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
-import { addNotification } from '../../lib/notifications';
-
 import { useNavigate } from 'react-router-dom';
+import confetti from 'canvas-confetti';
 import { supabase } from '../../lib/supabase';
 import { sendApprovalEmail as sendRealEmail } from '../../lib/resend';
 
-const StatCard = ({ label, value, change, color }: { label: string, value: string, change: string, color: string }) => (
-  <motion.div 
-    whileHover={{ y: -5 }}
-    className={`bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 relative overflow-hidden group`}
-  >
-     <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${color} opacity-10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-500`} />
-     <h3 className="text-slate-500 font-medium mb-2 relative z-10">{label}</h3>
-     <div className="text-3xl font-bold text-slate-900 mb-2 relative z-10">{value}</div>
-     <div className="flex items-center gap-2 text-sm font-bold text-green-600 relative z-10">
-        <span className="bg-green-100 px-2 py-1 rounded-lg">{change}</span>
-        <span className="text-slate-400 font-normal">vs last month</span>
-     </div>
-  </motion.div>
-);
+// Refactored Components
+import { OverviewStats } from '../../components/dashboard/StatCards';
+import { AnalyticsChart } from '../../components/dashboard/AnalyticsChart';
+import { CourseList, ActiveCourses } from '../../components/dashboard/CourseList';
+import { LessonManager } from '../../components/dashboard/LessonManager';
+import { StudentDirectory } from '../../components/dashboard/StudentDirectory';
 
-const GrowthChart = ({ isRTL }: { isRTL: boolean }) => {
-   // Simulated data points for a smooth curve
-   const data = [10, 25, 18, 30, 45, 35, 55, 48, 65, 58, 75, 90];
-   const width = 1000;
-   const height = 300;
-   
-   // Simple logic to create path commands
-   const createPath = (data: number[]) => {
-      const step = width / (data.length - 1);
-      const points = data.map((d, i) => {
-         const x = i * step;
-         const y = height - (d / 100) * height; // Normalize to height
-         return `${x},${y}`;
-      });
-      return `M ${points.join(' L ')}`;
-   };
-
-   // Area path (closed at bottom)
-   const createArea = (data: number[]) => {
-      return `${createPath(data)} L ${width},${height} L 0,${height} Z`;
-   };
-
-   return (
-      <div className={`w-full h-full relative ${isRTL ? 'scale-x-[-1]' : ''}`}>
-         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
-            <defs>
-               <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2563EB" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
-               </linearGradient>
-            </defs>
-            
-            {/* Grid Lines */}
-            {[0, 25, 50, 75, 100].map((tick, i) => (
-               <line 
-                  key={i}
-                  x1="0" 
-                  y1={height - (tick / 100) * height} 
-                  x2={width} 
-                  y2={height - (tick / 100) * height} 
-                  stroke="#E2E8F0" 
-                  strokeDasharray="4 4" 
-               />
-            ))}
-
-            {/* Area */}
-            <motion.path 
-               d={createArea(data)} 
-               fill="url(#chartGradient)" 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               transition={{ duration: 1 }}
-            />
-
-            {/* Line */}
-            <motion.path 
-               d={createPath(data)} 
-               fill="none" 
-               stroke="#2563EB" 
-               strokeWidth="4" 
-               strokeLinecap="round" 
-               strokeLinejoin="round" 
-               initial={{ pathLength: 0 }}
-               animate={{ pathLength: 1 }}
-               transition={{ duration: 2, ease: "easeInOut" }}
-            />
-
-            {/* Points */}
-            {data.map((d, i) => (
-               <motion.circle 
-                  key={i}
-                  cx={i * (width / (data.length - 1))}
-                  cy={height - (d / 100) * height}
-                  r="6"
-                  fill="white"
-                  stroke="#2563EB"
-                  strokeWidth="3"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 1.5 + (i * 0.1) }}
-                  whileHover={{ scale: 1.5, stroke: "#7C3AED" }}
-                  className="cursor-pointer"
-               />
-            ))}
-         </svg>
-      </div>
-   );
+// Local utility for notifications
+const addNotification = (message: string, type: 'success' | 'info' | 'error' | 'warning' = 'info') => {
+  console.log(`[Admin] ${type.toUpperCase()}: ${message}`);
 };
 
-const CourseUploadModal = ({ onClose, onSuccess }: { onClose: () => void, onSuccess: () => void }) => {
-   const { t } = useTranslation();
+
+
+const CourseUploadModal = ({ onClose, onSuccess, course }: { onClose: () => void, onSuccess: () => void, course?: any }) => {
    const [loading, setLoading] = useState(false);
-   const [uploadProgress, setUploadProgress] = useState(0);
-   const [title, setTitle] = useState('');
-   const [videoUrl, setVideoUrl] = useState('');
+   const [title, setTitle] = useState(course?.title || '');
+   const [videoUrl, setVideoUrl] = useState(course?.videoUrl || '');
    const [thumbnail, setThumbnail] = useState<File | null>(null);
-   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(course?.thumbnailUrl || null);
    const fileInputRef = useRef<HTMLInputElement>(null);
 
    const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,46 +43,60 @@ const CourseUploadModal = ({ onClose, onSuccess }: { onClose: () => void, onSucc
    };
 
    const handlePublish = async () => {
-      if (!title || !videoUrl || !thumbnail) {
+      if (!title || !videoUrl || (!thumbnail && !course?.thumbnailUrl)) {
          alert('Please fill all fields and select a thumbnail');
          return;
       }
 
       setLoading(true);
       try {
-         console.log('🚀 Starting course deployment...');
-         // 1. Upload Thumbnail to Supabase Storage
-         const fileExt = thumbnail.name.split('.').pop();
-         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-         const filePath = `course-thumbnails/${fileName}`;
+         let currentThumbnailUrl = course?.thumbnailUrl;
 
-         const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .upload(filePath, thumbnail);
+         if (thumbnail) {
+            console.log('🚀 Uploading new thumbnail...');
+            const fileExt = thumbnail.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const filePath = `course-thumbnails/${fileName}`;
 
-         if (uploadError) throw uploadError;
+            const { error: uploadError } = await supabase.storage
+               .from('avatars')
+               .upload(filePath, thumbnail);
 
-         const { data: { publicUrl: thumbnailUrl } } = supabase.storage
-            .from('avatars')
-            .getPublicUrl(filePath);
+            if (uploadError) throw uploadError;
 
-         // 2. Save Course to Table
-         const newCourse = {
+            const { data: { publicUrl } } = supabase.storage
+               .from('avatars')
+               .getPublicUrl(filePath);
+            
+            currentThumbnailUrl = publicUrl;
+         }
+
+         const courseData = {
             title,
             videoUrl,
-            thumbnailUrl,
-            status: 'published',
-            createdAt: new Date().toISOString()
+            thumbnailUrl: currentThumbnailUrl,
+            status: course?.status || 'published',
+            createdAt: course?.createdAt || new Date().toISOString()
          };
 
-         console.log('💾 Saving course to database:', newCourse);
-         const { data: savedData, error: saveError } = await supabase
-            .from('courses')
-            .insert([newCourse])
-            .select()
-            .single();
-
-         if (saveError) throw saveError;
+         if (course?.id) {
+            console.log('💾 Updating course:', course.id);
+            const { error: updateError } = await supabase
+               .from('courses')
+               .update(courseData)
+               .eq('id', course.id);
+            
+            if (updateError) throw updateError;
+            addNotification(`Course Updated: ${title}`, 'success');
+         } else {
+            console.log('💾 Saving new course:', courseData);
+            const { error: saveError } = await supabase
+               .from('courses')
+               .insert([courseData]);
+            
+            if (saveError) throw saveError;
+            addNotification(`New Course Published: ${title}`, 'success');
+         }
 
          confetti({
             particleCount: 150,
@@ -182,12 +105,11 @@ const CourseUploadModal = ({ onClose, onSuccess }: { onClose: () => void, onSucc
             colors: ['#2563EB', '#7C3AED', '#10B981']
          });
 
-         addNotification(`New Course Published: ${title}`, 'success');
-         onSuccess(); // Trigger background refresh
+         onSuccess();
          setTimeout(onClose, 1000);
       } catch (err: any) {
-         console.error('Course publish error:', err);
-         alert('Failed to publish course: ' + err.message);
+         console.error('Course save error:', err);
+         alert('Failed to save course: ' + err.message);
       } finally {
          setLoading(false);
       }
@@ -305,38 +227,46 @@ const AdminPaymentRequestsView = () => {
 
     const fetchRequests = async () => {
        // Only show loading if we don't have cached data
-       const cached = localStorage.getItem('itqan_admin_payments');
+       const cached = localStorage.getItem('itqan_admin_payment_requests');
        if (!cached) setLoading(true);
        
        try {
           // Attempt simple fetch first to avoid relationship errors if schema isn't synced
-          const { data: rawRequests, error: fetchError } = await supabase
-             .from('payment_requests')
-             .select('*')
-             .order('created_at', { ascending: false });
-          
-          if (fetchError) throw fetchError;
+           const { data: rawRequests, error: fetchError } = await supabase
+              .from('payment_requests')
+              .select('*')
+              .order('created_at', { ascending: false });
+           
+           if (fetchError) throw fetchError;
 
           if (!rawRequests || rawRequests.length === 0) {
              setRequests([]);
-             localStorage.setItem('itqan_admin_payments', '[]');
+             localStorage.setItem('itqan_admin_payment_requests', '[]');
              return;
           }
 
-          // Manually resolve users and courses to bypass nested relationship errors
-          const userIds = [...new Set(rawRequests.map(r => r.user_id))];
-          const courseIds = [...new Set(rawRequests.map(r => r.course_id))];
+            // Normalize data to support both snake_case and camelCase to prevent UUID errors
+            const normalizedRequests = rawRequests.map(r => ({
+               ...r,
+               userId: r.userId || r.user_id,
+               courseId: r.courseId || r.course_id,
+               receipt_url: r.receipt_url || r.receiptUrl
+            }));
+
+            // Manually resolve users and courses to bypass nested relationship errors
+            const userIds = [...new Set(normalizedRequests.map(r => r.userId).filter(Boolean))];
+            const courseIds = [...new Set(normalizedRequests.map(r => r.courseId).filter(Boolean))];
 
           const [{ data: users }, { data: courses }] = await Promise.all([
              supabase.from('users').select('id, name, email').in('id', userIds),
              supabase.from('courses').select('id, title').in('id', courseIds)
           ]);
 
-          const resolvedData = rawRequests.map(req => ({
-             ...req,
-             user: users?.find(u => u.id === req.user_id),
-             course: courses?.find(c => c.id === req.course_id)
-          }));
+            const resolvedData = normalizedRequests.map(req => ({
+               ...req,
+               user: users?.find(u => u.id === req.userId),
+               course: courses?.find(c => c.id === req.courseId)
+            }));
 
           setRequests(resolvedData);
           localStorage.setItem('itqan_admin_payments', JSON.stringify(resolvedData));
@@ -375,15 +305,7 @@ const AdminPaymentRequestsView = () => {
 
    const handleApprove = async (request: any) => {
       try {
-         // 1. Check if already enrolled
-         const { data: existingEnrollment } = await supabase
-            .from('enrollments')
-            .select('id')
-            .eq('userId', request.user_id)
-            .eq('courseId', request.course_id)
-            .single();
-
-         // 2. Approve Payment
+         // 1. Approve Payment
          const { error: updateError } = await supabase
             .from('payment_requests')
             .update({ status: 'approved' })
@@ -391,91 +313,49 @@ const AdminPaymentRequestsView = () => {
 
          if (updateError) throw updateError;
 
-         let enrollmentMessage = '';
+          // 2. Automated Enrollment
+          const { error: enrollError } = await supabase
+             .from('enrollments')
+             .upsert({
+                userId: request.userId,
+                courseId: request.courseId
+             }, { 
+                onConflict: 'userId,courseId'
+             });
 
-         // 3. Automated Enrollment (using upsert to prevent 409 conflicts)
-         const { error: enrollError } = await supabase
-            .from('enrollments')
-            .upsert({
-               userId: request.user_id,
-               courseId: request.course_id
-            }, { 
-               onConflict: 'userId,courseId' // Ensure this matches your unique constraint/index in DB
-            });
-
-         if (enrollError) {
-            console.error('Enrollment error:', enrollError);
-            // If upsert fails due to missing constraint, we fallback to manual check (already done above but adding safety)
-            if (enrollError.code !== '23505') throw enrollError;
-         }
+         if (enrollError && enrollError.code !== '23505') throw enrollError;
          
-         enrollmentMessage = existingEnrollment ? 'Student was already enrolled.' : 'The course is now unlocked.';
+         // 3. Sync Logic: Dispatches global event to refresh enrollment counts
+         window.dispatchEvent(new CustomEvent('itqan:enrollment-updated'));
+         
+         // Force immediate re-fetch of requests to reflect status change
+         await fetchRequests();
 
-         // 4. Send Real Approval Email via Resend
          if (request.user?.email) {
-            console.log('📧 Attempting to send real email to:', request.user.email);
             sendRealEmail(request.user.email, request.course?.title || 'Course');
          }
 
-         // 5. Broadcast enrollment approval to student's client for real-time unlock
          try {
-            console.log('📡 Initializing enrollment-approved broadcast...');
-            const channel = supabase.channel('enrollment-updates', {
-               config: {
-                  broadcast: { ack: true }
-               }
-            });
-            
+            const channel = supabase.channel('enrollment-updates');
             channel.subscribe(async (status) => {
                if (status === 'SUBSCRIBED') {
-                  const response = await channel.send({
-                     type: 'broadcast',
-                     event: 'enrollment-approved',
-                     payload: {
-                        userId: request.user_id,
-                        courseId: request.course_id,
-                        courseName: request.course?.title,
-                        timestamp: new Date().toISOString()
-                     }
-                  });
-                  console.log('📡 Approval broadcast status:', response);
-                  
-                  // Cleanup after sending to keep connections clean
-                  setTimeout(() => {
-                     supabase.removeChannel(channel);
-                     console.log('📡 Channel removed after successful broadcast');
-                  }, 2000);
+                   const response = await channel.send({
+                      type: 'broadcast',
+                      event: 'enrollment-approved',
+                      payload: { userId: request.userId, courseId: request.courseId }
+                   });
+                  setTimeout(() => supabase.removeChannel(channel), 2000);
                }
             });
-         } catch (broadcastErr) {
-            console.warn('⚠️ Approval broadcast failed (non-critical):', broadcastErr);
-         }
+         } catch (e) {}
 
-         // 6. Notify Student
-         const studentNotifKey = `itqan_notifications_${request.user_id}`;
-         const studentNotifs = JSON.parse(localStorage.getItem(studentNotifKey) || '[]');
-         studentNotifs.unshift({
-            id: Date.now(),
-            message: `🎉 Your payment for "${request.course?.title}" has been approved! ${enrollmentMessage}`,
-            type: 'success',
-            timestamp: new Date().toISOString()
-         });
-         localStorage.setItem(studentNotifKey, JSON.stringify(studentNotifs.slice(0, 50)));
-
-         confetti({
-            particleCount: 150,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#10B981', '#34D399']
-         });
-
-         const successMsg = existingEnrollment 
-            ? `Payment approved for ${request.user?.name} (already enrolled)` 
-            : `Payment approved for ${request.user?.name}`;
-         addNotification(successMsg, 'success');
-      } catch (err) {
+         confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#10B981', '#34D399'] });
+         addNotification(`Enrollment Successful! Course opened for ${request.user?.name || 'Student'}`, 'success');
+         fetchRequests();
+      } catch (err: any) {
          console.error('Approval failed:', err);
-         alert('Update failed');
+         addNotification(`Approval Error: ${err.message || 'Database connection lost'}`, 'error');
+         alert(`SCHEMA ERROR: ${err.details || err.message}`);
       }
    };
 
@@ -487,60 +367,27 @@ const AdminPaymentRequestsView = () => {
 
       try {
          console.log('🔄 Starting Cancel Approval Process...');
-         console.log('Request data:', { user_id: request.user_id, course_id: request.course_id });
+         console.log('Request data:', { userId: request.userId, courseId: request.courseId });
 
          // 1. First, check if enrollment exists
          const { data: existingEnrollment, error: checkError } = await supabase
             .from('enrollments')
             .select('*')
-            .eq('userId', request.user_id)
-            .eq('courseId', request.course_id)
+            .eq('userId', request.userId)
+            .eq('courseId', request.courseId)
             .maybeSingle();
 
-         if (checkError) {
-            console.error('❌ Error checking enrollment:', checkError);
-            throw new Error(`Failed to check enrollment: ${checkError.message}`);
-         }
+         if (checkError) throw checkError;
 
-         console.log('📋 Existing enrollment:', existingEnrollment);
-
-         if (!existingEnrollment) {
-            console.warn('⚠️ No enrollment found to delete');
-            // Continue anyway to update status
-         } else {
+         if (existingEnrollment) {
             // 2. Delete enrollment record to lock the course
-            const { data: deletedData, error: deleteError } = await supabase
+            const { error: deleteError } = await supabase
                .from('enrollments')
                .delete()
-               .eq('userId', request.user_id)
-               .eq('courseId', request.course_id)
-               .select();
+               .eq('userId', request.userId)
+               .eq('courseId', request.courseId);
 
-            if (deleteError) {
-               console.error('❌ Enrollment deletion error:', deleteError);
-               throw new Error(`Failed to delete enrollment: ${deleteError.message}`);
-            }
-
-            console.log('✅ Enrollment deleted successfully:', deletedData);
-
-            // 3. Verify deletion with a small delay
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            const { data: verifyEnrollment, error: verifyError } = await supabase
-               .from('enrollments')
-               .select('*')
-               .eq('userId', request.user_id)
-               .eq('courseId', request.course_id)
-               .maybeSingle();
-
-            if (verifyError) {
-               console.error('❌ Verification error:', verifyError);
-            } else if (verifyEnrollment) {
-               console.error('⚠️ WARNING: Enrollment still exists after deletion!', verifyEnrollment);
-               throw new Error('Enrollment deletion verification failed - record still exists');
-            } else {
-               console.log('✅ Verified: Enrollment successfully removed from database');
-            }
+            if (deleteError) throw deleteError;
          }
 
          // 4. Update payment status to pending
@@ -581,12 +428,12 @@ const AdminPaymentRequestsView = () => {
                   const response = await channel.send({
                      type: 'broadcast',
                      event: 'enrollment-cancelled',
-                     payload: {
-                        userId: request.user_id,
-                        courseId: request.course_id,
-                        courseName: request.course?.title,
-                        timestamp: new Date().toISOString()
-                     }
+                      payload: {
+                         userId: request.userId,
+                         courseId: request.courseId,
+                         courseName: request.course?.title,
+                         timestamp: new Date().toISOString()
+                      }
                   });
                   console.log('📡 Cancellation broadcast status:', response);
                   
@@ -602,8 +449,8 @@ const AdminPaymentRequestsView = () => {
             // Don't throw - broadcast failure shouldn't stop the process
          }
 
-         // 7. Notify Student
-         const studentNotifKey = `itqan_notifications_${request.user_id}`;
+          // 7. Notify Student
+          const studentNotifKey = `itqan_notifications_${request.userId}`;
          const studentNotifs = JSON.parse(localStorage.getItem(studentNotifKey) || '[]');
          studentNotifs.unshift({
             id: Date.now(),
@@ -613,15 +460,34 @@ const AdminPaymentRequestsView = () => {
          });
          localStorage.setItem(studentNotifKey, JSON.stringify(studentNotifs.slice(0, 50)));
 
-         // 8. Show success notification
-         addNotification('Approval cancelled and course locked', 'success');
-         console.log('✅ Cancel Approval Process Complete!');
+         window.dispatchEvent(new CustomEvent('itqan:enrollment-updated'));
+          addNotification('Access revoked successfully', 'success');
+          fetchRequests();
+       } catch (err: any) {
+          console.error('Revoke failed:', err);
+          addNotification(`Sync Failure: ${err.message}`, 'error');
+          alert(`DATABASE ERROR: ${err.details || err.message}`);
+       }
+    };
 
-      } catch (err: any) {
-         console.error('❌ Cancel approval failed:', err);
-         alert(`Error: ${err.message || 'Failed to cancel approval. Check console for details.'}`);
-      }
-   };
+    const handleHardDelete = async (request: any) => {
+       if (!confirm(`⚠️ HARD DELETE: This will permanently remove the payment request and course access for ${request.user?.name}. Are you sure?`)) return;
+
+       try {
+          // 1. Remove enrollment first
+          await supabase.from('enrollments').delete().eq('userId', request.userId).eq('courseId', request.courseId);
+          
+          // 2. Remove payment request
+          const { error } = await supabase.from('payment_requests').delete().eq('id', request.id);
+          
+          if (error) throw error;
+
+          addNotification('Record completely purged', 'info');
+          fetchRequests();
+       } catch (err: any) {
+          addNotification(`Delete Error: ${err.message}`, 'error');
+       }
+    };
 
 
    const handleReject = async (id: string) => {
@@ -697,14 +563,14 @@ const AdminPaymentRequestsView = () => {
                             <td className="px-8 py-6">
                                <span className="text-sm font-black text-[#2563EB]">${req.amount}</span>
                             </td>
-                            <td className="px-8 py-6">
-                               <button 
-                                  onClick={() => setPreviewImage(req.receipt_url)}
-                                  className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all shadow-sm"
-                               >
-                                  <img src={req.receipt_url} className="w-full h-full object-cover" alt="Proof" />
-                               </button>
-                            </td>
+                             <td className="px-8 py-6">
+                                <button 
+                                   onClick={() => setPreviewImage(req.receipt_url)}
+                                   className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all shadow-sm"
+                                >
+                                   <img src={req.receipt_url} className="w-full h-full object-cover" alt="Proof" />
+                                </button>
+                             </td>
                             <td className="px-8 py-6">
                                <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
                                   req.status === 'approved' ? 'bg-green-100 text-green-700' : 
@@ -716,7 +582,14 @@ const AdminPaymentRequestsView = () => {
                             </td>
                             <td className="px-8 py-6 text-right">
                                {req.status === 'pending' ? (
-                                  <div className="flex gap-2 justify-end">
+                                   <div className="flex gap-2 justify-end">
+                                     <button 
+                                        onClick={() => handleHardDelete(req)}
+                                        title="Hard Delete Record"
+                                        className="p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                     >
+                                        <Trash2 className="w-5 h-5" />
+                                     </button>
                                      <button 
                                         onClick={() => handleReject(req.id)}
                                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
@@ -955,20 +828,42 @@ style.textContent = `
 document.head.appendChild(style);
 
 export default function AdminDashboard() {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const { t, i18n } = useTranslation();
   const isRTL = i18n.language === 'ar';
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [showUpload, setShowUpload] = useState(false);
-  const [courses, setCourses] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [selectedCourseName, setSelectedCourseName] = useState<string | null>(null);
+  const [editingCourse, setEditingCourse] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [uploadState, setUploadState] = useState<{ loading: boolean; progress: number; type: 'profile' | 'cover' | null }>({
     loading: false,
     progress: 0,
     type: null
   });
+
+  useEffect(() => {
+    const fetchCourseName = async () => {
+      if (!selectedCourseId) {
+        setSelectedCourseName(null);
+        return;
+      }
+      const { data } = await supabase.from('courses').select('title').eq('id', selectedCourseId).single();
+      if (data) setSelectedCourseName(data.title);
+    };
+    fetchCourseName();
+  }, [selectedCourseId]);
+
+  useEffect(() => {
+    const handleClearSearch = () => setSearchQuery('');
+    window.addEventListener('itqan:clear-search', handleClearSearch);
+    return () => window.removeEventListener('itqan:clear-search', handleClearSearch);
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -1045,24 +940,18 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchCourses = async () => {
-    // Only show loading if we don't have cached data
-    const cached = localStorage.getItem('itqan_admin_courses');
-    if (!cached) setIsLoading(true);
-
+  const fetchAdminNotifications = async () => {
     try {
+      // Strictly select confirmed columns only
       const { data, error } = await supabase
-        .from('courses')
-        .select('*')
-        .order('createdAt', { ascending: false });
+        .from('notifications')
+        .select('id, user_id, message, created_at')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCourses(data || []);
-      localStorage.setItem('itqan_admin_courses', JSON.stringify(data || []));
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-    } finally {
-      setIsLoading(false);
+      setNotifications(data || []);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
     }
   };
 
@@ -1085,14 +974,7 @@ export default function AdminDashboard() {
        role: 'MASTER ADMIN'
     });
 
-    // Load from cache first for instant UI
-    const cachedCourses = localStorage.getItem('itqan_admin_courses');
-    if (cachedCourses) {
-       setCourses(JSON.parse(cachedCourses));
-       setIsLoading(false);
-    }
-
-    fetchCourses();
+    fetchAdminNotifications();
 
     confetti({
       particleCount: 150,
@@ -1100,6 +982,9 @@ export default function AdminDashboard() {
       origin: { y: 0.6 },
       colors: ['#2563EB', '#7C3AED']
     });
+    
+    // Crucial: allow UI to render after auth and data fetch
+    setIsLoading(false);
   }, [navigate]);
 
   const toggleLanguage = () => {
@@ -1200,13 +1085,28 @@ export default function AdminDashboard() {
         <header className="h-24 flex items-center justify-between px-10 z-10">
           <h1 className="text-2xl font-black text-slate-800 tracking-tight uppercase">{t(activeTab === 'overview' ? 'dashboard_overview' : activeTab )}</h1>
           <div className="flex items-center gap-4">
-            <div className="relative group">
-               <Search className={`w-5 h-5 text-slate-400 absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-4' : 'left-4'}`} />
+            <div className={`relative group transition-all duration-500 ${isRTL ? 'flex-row-reverse' : ''}`}>
+               <Search className={`w-5 h-5 text-slate-400 absolute top-1/2 -translate-y-1/2 transition-all duration-500 group-focus-within:text-[#2563EB] ${isRTL ? 'right-5' : 'left-5'}`} />
                <input 
                   type="text" 
-                  placeholder={t('search_placeholder')}
-                  className={`w-64 bg-white border border-slate-100 rounded-full py-2.5 ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all hover:w-80 shadow-sm`}
+                  placeholder={isRTL ? "ابحث عن أي شيء..." : t('search_placeholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-64 bg-white border border-slate-100 rounded-full py-3.5 ${isRTL ? 'pr-14 pl-6' : 'pl-14 pr-6'} focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all hover:w-80 focus:w-96 shadow-sm hover:shadow-md focus:shadow-xl focus:scale-[1.02] active:scale-[0.98] font-medium text-sm`}
                />
+               <AnimatePresence>
+                  {searchQuery && (
+                     <motion.button
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.5 }}
+                        onClick={() => setSearchQuery('')}
+                        className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'left-4' : 'right-4'} w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors shadow-sm`}
+                     >
+                        <X className="w-3 h-3" />
+                     </motion.button>
+                  )}
+               </AnimatePresence>
             </div>
             
              <div className="relative">
@@ -1215,7 +1115,7 @@ export default function AdminDashboard() {
                   className={`w-10 h-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-500 hover:text-[#F59E0B] hover:shadow-lg transition-all relative ${showNotifications ? 'text-[#F59E0B] border-[#F59E0B]/30' : ''}`}
                 >
                    <Bell className="w-5 h-5" />
-                   { (JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]') as any[]).length > 0 && (
+                   {notifications.length > 0 && (
                       <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
                    )}
                 </button>
@@ -1231,8 +1131,9 @@ export default function AdminDashboard() {
                          <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-50">
                             <h3 className="font-bold text-slate-800">Student Requests</h3>
                             <button 
-                              onClick={() => {
-                                 localStorage.setItem('itqan_global_notifications', '[]');
+                              onClick={async () => {
+                                 const { error } = await supabase.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                                 if (!error) setNotifications([]);
                                  setShowNotifications(false);
                               }}
                               className="text-[10px] uppercase tracking-widest text-[#2563EB] font-black"
@@ -1241,10 +1142,10 @@ export default function AdminDashboard() {
                             </button>
                          </div>
                          <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-thin">
-                            {(JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]') as any[]).length === 0 ? (
+                            {notifications.length === 0 ? (
                                <p className="text-center text-sm text-slate-400 py-4">No new requests</p>
                             ) : (
-                               (JSON.parse(localStorage.getItem('itqan_global_notifications') || '[]') as any[]).map((notif, i) => (
+                               notifications.map((notif, i) => (
                                   <motion.div 
                                      key={notif.id || i}
                                      initial={{ opacity: 0, x: -20 }}
@@ -1255,7 +1156,9 @@ export default function AdminDashboard() {
                                      <div className="w-2 h-2 rounded-full mt-2 shrink-0 bg-[#2563EB]" />
                                      <div>
                                         <p className="text-xs font-bold text-slate-700 leading-tight">{notif.message}</p>
-                                        <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">{new Date(notif.timestamp).toLocaleString()}</p>
+                                        <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-tighter">
+                                           {notif.created_at ? new Date(notif.created_at).toLocaleString() : ''}
+                                        </p>
                                      </div>
                                   </motion.div>
                                ))
@@ -1289,59 +1192,42 @@ export default function AdminDashboard() {
            
            {activeTab === 'overview' && (
              <div className="space-y-8">
-               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <StatCard label={t('total_students')} value="12,450" change="+12%" color="from-blue-500 to-cyan-500" />
-                  <StatCard label={t('active_courses')} value="48" change="+3%" color="from-purple-500 to-pink-500" />
-                  <StatCard label={t('monthly_revenue')} value="$124,500" change="+8.2%" color="from-green-500 to-emerald-500" />
-                  <StatCard label={t('pending_assignments')} value="182" change="-5%" color="from-orange-500 to-red-500" />
-               </div>
+               <OverviewStats />
 
                <div className="grid grid-cols-3 gap-8">
                   <div className="col-span-2 bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-200/50 min-h-[400px]">
                      <div className="flex justify-between items-center mb-8">
-                        <div>
-                           <h3 className="font-bold text-lg text-slate-800">Growth Analysis</h3>
-                           <p className="text-sm text-slate-400">Student enrollment & revenue trends</p>
-                        </div>
+                         <div>
+                            <h3 className="font-bold text-lg text-slate-800">
+                               Growth Analysis{selectedCourseName ? `: ${selectedCourseName}` : ''}
+                            </h3>
+                            <p className="text-sm text-slate-400">Student enrollment & revenue trends</p>
+                         </div>
                         <select className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1 text-sm font-medium text-slate-600 outline-none">
                            <option>Last 30 Days</option>
                            <option>This Year</option>
                         </select>
                      </div>
                      <div className="h-72 w-full">
-                        <GrowthChart isRTL={isRTL} />
+                         <AnalyticsChart isRTL={isRTL} selectedCourseId={selectedCourseId} />
                      </div>
                   </div>
                   
-                  <div className="bg-gradient-to-br from-[#2563EB] to-[#7C3AED] rounded-[2.5rem] p-8 text-white shadow-xl shadow-blue-500/20 relative overflow-hidden">
-                     <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl -mr-16 -mt-16" />
-                     <h3 className="font-bold text-lg mb-1">{t('active_courses')}</h3>
-                     <p className="text-blue-100 text-sm mb-6">Top performing content</p>
-                     
-                     <div className="space-y-4">
-                        {[1,2,3].map(i => (
-                           <div key={i} className="flex items-center gap-3 p-3 bg-white/10 rounded-2xl backdrop-blur-md">
-                              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                                 <BookOpen className="w-5 h-5" />
-                              </div>
-                              <div>
-                                 <p className="font-bold text-sm">React Mastery</p>
-                                 <p className="text-xs text-blue-200">1.2k students</p>
-                              </div>
-                           </div>
-                        ))}
-                     </div>
-                     
-                     <button className="w-full mt-8 py-3 bg-white text-[#2563EB] rounded-xl font-bold hover:bg-blue-50 transition-colors">
-                        View Analytics
-                     </button>
-                  </div>
+                   <ActiveCourses 
+                      t={t} 
+                      selectedCourseId={selectedCourseId}
+                      onSelectCourse={setSelectedCourseId}
+                      onViewAnalytics={(courseId) => {
+                         setSelectedCourseId(courseId);
+                         setActiveTab('courses');
+                      }}
+                   />
                </div>
              </div>
            )}
 
-           {activeTab === 'courses' && (
-              <div className="space-y-6">
+            {activeTab === 'courses' && (
+               <div className="space-y-6">
                   <div className="flex justify-between items-center">
                      <h2 className="text-xl font-bold text-slate-800">All Courses</h2>
                      <button 
@@ -1353,81 +1239,61 @@ export default function AdminDashboard() {
                      </button>
                   </div>
 
-                  <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
-                     <div className="max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-purple-600 scrollbar-track-transparent">
-                        <table className="w-full border-collapse">
-                           <thead className="bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
-                           <tr>
-                              <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>Name</th>
-                              <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>Status</th>
-                              <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>Students</th>
-                              <th className={`px-8 py-4 text-sm font-bold text-slate-500 ${isRTL ? 'text-right' : 'text-left'}`}>Rating</th>
-                              <th className="px-8 py-4"></th>
-                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                           {courses.length > 0 ? courses.map(course => (
-                              <tr key={course.id} className="group hover:bg-slate-50/50 transition-colors">
-                                 <td className="px-8 py-4">
-                                    <div className="flex items-center gap-4">
-                                       <div className="w-16 h-10 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-200">
-                                          {course.thumbnailUrl ? (
-                                             <img src={course.thumbnailUrl} className="w-full h-full object-cover" alt="" />
-                                          ) : (
-                                             <BookOpen className="w-5 h-5 text-slate-400" />
-                                          )}
-                                       </div>
-                                       <div>
-                                          <p className="font-bold text-slate-800">{course.title}</p>
-                                          <p className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">ID: {course.id.slice(0, 8)}</p>
-                                       </div>
-                                    </div>
-                                 </td>
-                                 <td className="px-8 py-4">
-                                    <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-[10px] font-black uppercase tracking-widest">{course.status}</span>
-                                 </td>
-                                 <td className="px-8 py-4 text-slate-600 font-medium text-sm">--</td>
-                                 <td className="px-8 py-4 text-slate-600 font-medium text-sm">--</td>
-                                 <td className="px-8 py-4 text-right">
-                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                       <button 
-                                          onClick={() => navigate('/dashboard')}
-                                          title="View as Student"
-                                          className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-[#7C3AED] transition-all"
-                                       >
-                                          <Eye className="w-4 h-4" />
-                                       </button>
-                                       <button className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-blue-500 transition-all"><Edit2 className="w-4 h-4" /></button>
-                                       <button className="p-2.5 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-500 transition-all"><Trash2 className="w-4 h-4" /></button>
-                                    </div>
-                                 </td>
-                              </tr>
-                           )) : (
-                              <tr>
-                                 <td colSpan={5} className="px-8 py-20 text-center">
-                                    <div className="flex flex-col items-center gap-3">
-                                       <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
-                                          <BookOpen className="w-8 h-8 text-slate-200" />
-                                       </div>
-                                       <p className="text-slate-400 font-medium">No courses deployed yet.</p>
-                                    </div>
-                                 </td>
-                              </tr>
-                           )}
-                        </tbody>
-                     </table>
-                     </div>
-                  </div>
-              </div>
-           )}
-           {activeTab === 'payments' && <AdminPaymentRequestsView />}
-           {activeTab === 'settings' && <AdminSettingsView userData={userData} onUpload={handleFileChange} uploadState={uploadState} />}
+                   <CourseList 
+                      searchQuery={searchQuery} 
+                      isRTL={isRTL} 
+                      onSelectCourse={setSelectedCourseId}
+                      onSetActiveTab={setActiveTab}
+                      onEditCourse={(c) => {
+                         setEditingCourse(c);
+                         setShowUpload(true);
+                      }}
+                   />
+                </div>
+             )}
+
+             {activeTab === 'course-editor' && (
+                <div className="space-y-6">
+                   <div className="flex items-center gap-4 mb-8">
+                      <button 
+                         onClick={() => setActiveTab('courses')}
+                         className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-[#2563EB] transition-all shadow-sm"
+                      >
+                         <X className="w-5 h-5 rotate-90" />
+                      </button>
+                      <div>
+                         <h2 className="text-2xl font-bold text-slate-800">Course Editor</h2>
+                         <p className="text-slate-500 text-sm">Now editing: <span className="text-[#2563EB] font-bold">{selectedCourseName || 'Selected Course'}</span></p>
+                      </div>
+                   </div>
+
+                   <LessonManager 
+                     courseId={selectedCourseId} 
+                     onBack={() => setActiveTab('courses')} 
+                   />
+                </div>
+             )}
+
+            {activeTab === 'students' && <StudentDirectory searchQuery={searchQuery} />}
+            {activeTab === 'payments' && <AdminPaymentRequestsView />}
+            {activeTab === 'settings' && <AdminSettingsView userData={userData} onUpload={handleFileChange} uploadState={uploadState} />}
 
         </div>
       </main>
 
       <AnimatePresence>
-         {showUpload && <CourseUploadModal onClose={() => setShowUpload(false)} onSuccess={fetchCourses} />}
+         {showUpload && (
+            <CourseUploadModal 
+               course={editingCourse}
+               onClose={() => {
+                  setShowUpload(false);
+                  setEditingCourse(null);
+               }} 
+               onSuccess={() => {
+                  window.location.reload(); 
+               }} 
+            />
+         )}
       </AnimatePresence>
     </div>
   );

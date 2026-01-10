@@ -52,7 +52,8 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
               id: data.user.id,
               name: authData.name, 
               email: authData.email, 
-              role: 'STUDENT' 
+              role: 'STUDENT',
+              createdAt: new Date().toISOString()
             }, { onConflict: 'id' });
           
           if (dbError) {
@@ -93,7 +94,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
           // Fetch additional profile info to determine role-based redirection
           const { data: profile } = await supabase
             .from('users')
-            .select('role, name, profileImage, coverImage')
+            .select('role, name, profileImage, coverImage, createdAt')
             .eq('id', data.user.id)
             .single();
 

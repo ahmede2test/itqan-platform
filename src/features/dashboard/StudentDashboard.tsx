@@ -430,7 +430,7 @@ const PaymentSubmissionModal = ({ isOpen, onClose, course, onPaymentSubmitted }:
 
       setIsUploading(true);
       try {
-         // Get fresh session to ensure user_id is exact auth.uid()
+         // Get fresh session to ensure userId is exact auth.uid()
          const { data: { session } } = await supabase.auth.getSession();
          if (!session?.user) throw new Error('Action unauthorized. Please log in.');
          
@@ -979,7 +979,7 @@ export default function StudentDashboard() {
         // FALLBACK/FAILSAFE: If user exists in Auth but not in public.users, create it now
         if (!profile && localData?.name) {
            console.log('User profile missing in DB, attempting failsafe sync...');
-           await supabase.from('users').upsert({
+           await supabase.from('profiles').upsert({
               id: session.user.id,
               name: localData.name,
               email: session.user.email,
@@ -1163,7 +1163,7 @@ export default function StudentDashboard() {
 
         // 4. Update Database profile directly
         const { error: dbError } = await supabase
-           .from('users')
+           .from('profiles')
            .update({ [type === 'profile' ? 'profileImage' : 'coverImage']: publicUrl })
            .eq('id', userData.id);
 
